@@ -1,0 +1,11 @@
+Sales App - Service URLs
+========================
+
+Frontend:   http://localhost:3000
+Backend:    http://localhost:8000/health
+Sentinel:   http://localhost:5001
+DB:         localhost:5434
+Temporal:   localhost:7234 (UI: localhost:8234)
+ChromaDB:   http://localhost:8100
+
+All services managed via: docker compose -f ~/Desktop/sales-app/docker-compose.yml
