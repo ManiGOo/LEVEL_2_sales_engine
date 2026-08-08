@@ -52,14 +52,15 @@ function Shield({ size = 16 }: { size?: number }) {
   )
 }
 
-function SignalList({ items, icon: Icon, title }: { items: IntentSignal[]; icon: React.ComponentType<{ size?: number }>; title: string }) {
+function SignalList({ items, icon: Icon, title, defaultOpen }: { items: IntentSignal[]; icon: React.ComponentType<{ size?: number }>; title: string; defaultOpen?: boolean }) {
   if (!items.length) return null
   return (
-    <div>
-      <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">
+    <details open={defaultOpen} className="group">
+      <summary className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2 cursor-pointer select-none hover:text-slate-300 transition-colors">
         <Icon size={12} />
         {title} · {items.length}
-      </p>
+        <span className="ml-auto text-slate-600 group-open:rotate-90 transition-transform">›</span>
+      </summary>
       <ul className="space-y-1.5">
         {items.slice(0, 6).map((s, i) => (
           <li key={`${s.url}-${i}`}>
@@ -76,19 +77,40 @@ function SignalList({ items, icon: Icon, title }: { items: IntentSignal[]; icon:
           </li>
         ))}
       </ul>
-    </div>
+    </details>
   )
+}
+
+function ConfidenceBadge({ confidence }: { confidence?: string }) {
+  if (!confidence) return null
+  const map: Record<string, { label: string; cls: string }> = {
+    high: { label: 'Verified', cls: 'bg-emerald-500/15 text-emerald-400' },
+    medium: { label: 'Likely', cls: 'bg-amber-500/15 text-amber-400' },
+    low: { label: 'Unverified', cls: 'bg-slate-500/15 text-slate-400' },
+  }
+  const m = map[confidence] || map.low
+  return <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide', m.cls)}>{m.label}</span>
 }
 
 function DecisionMakerCard({ dm }: { dm: DecisionMaker }) {
   const isQA = dm.role_type === 'qa_head' || dm.role_type === 'qa_manager' || dm.role_type === 'quality_personnel'
+  const isHighConfidence = dm.confidence === 'high'
+  const isMediumConfidence = dm.confidence === 'medium'
   return (
-    <div className="flex items-start gap-2.5 rounded-lg bg-slate-900/50 border border-white/5 p-2.5">
+    <div className={cn(
+      'flex items-start gap-2.5 rounded-lg border p-2.5',
+      isHighConfidence ? 'bg-emerald-500/5 border-emerald-500/20' :
+      isMediumConfidence ? 'bg-amber-500/5 border-amber-500/20' :
+      'bg-slate-900/50 border-white/5',
+    )}>
       <div className={cn('mt-0.5', isQA ? 'text-emerald-400' : 'text-indigo-400')}>
         <RoleIcon roleType={dm.role_type} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-white truncate">{dm.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-white truncate">{dm.name}</p>
+          <ConfidenceBadge confidence={dm.confidence} />
+        </div>
         <p className="text-[11px] text-slate-400 truncate">{dm.role}</p>
         <div className="flex items-center gap-2 mt-1">
           {dm.linkedin_url && (
@@ -134,6 +156,29 @@ export function LeadResultContent({ lead }: { lead: Lead }) {
         </div>
       </div>
 
+      {(lead.trigger_events.length > 0 || lead.hiring.length > 0) && (
+        <div className="flex flex-wrap gap-2">
+          {lead.trigger_events.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full">
+              <AlertTriangle size={11} />
+              {lead.trigger_events.length} QMS trigger{lead.trigger_events.length > 1 ? 's' : ''}
+            </span>
+          )}
+          {lead.hiring.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full">
+              <Briefcase size={11} />
+              {lead.hiring.length} active job{lead.hiring.length > 1 ? 's' : ''}
+            </span>
+          )}
+          {lead.decision_makers.filter(d => d.confidence === 'high').length > 0 && (
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-sky-400 bg-sky-500/10 px-2.5 py-1 rounded-full">
+              <UserCircle size={11} />
+              {lead.decision_makers.filter(d => d.confidence === 'high').length} verified contact{lead.decision_makers.filter(d => d.confidence === 'high').length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+
       {lead.website && (
         <a href={lead.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-indigo-300/90 hover:text-indigo-200 underline underline-offset-2 break-all">
           <Globe size={14} className="shrink-0" />
@@ -145,7 +190,7 @@ export function LeadResultContent({ lead }: { lead: Lead }) {
         <div>
           <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">
             <UserCircle size={12} />
-            Decision makers · {lead.decision_makers.length}
+            Who to contact · {lead.decision_makers.length}
           </p>
           <div className="space-y-2">
             {lead.decision_makers.map((dm, i) => (
@@ -178,8 +223,8 @@ export function LeadResultContent({ lead }: { lead: Lead }) {
         </div>
       )}
 
+      <SignalList items={lead.trigger_events} icon={AlertTriangle} title="QMS triggers (why now)" defaultOpen />
       <SignalList items={lead.intent_signals} icon={Activity} title="Activity signals" />
-      <SignalList items={lead.trigger_events} icon={AlertTriangle} title="QMS triggers" />
     </div>
   )
 }

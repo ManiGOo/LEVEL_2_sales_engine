@@ -140,6 +140,7 @@ export interface DecisionMaker {
   role_type: string
   linkedin_url?: string
   email?: string
+  confidence?: string
 }
 
 export interface IntentSignal {
