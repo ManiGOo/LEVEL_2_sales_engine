@@ -10,6 +10,7 @@ import ChatPage from '@/pages/ChatPage'
 import CompaniesPage from '@/pages/CompaniesPage'
 import CompanyDetailPage from '@/pages/CompanyDetailPage'
 import LeadsPage from '@/pages/LeadsPage'
+import CampaignsPage from '@/pages/CampaignsPage'
 import ProfilePage from '@/pages/ProfilePage'
 import { Toaster } from '@/components/ui/Toast'
 import type { ReactNode } from 'react'
@@ -45,6 +46,7 @@ export default function App() {
               <Route path="/companies" element={<CompaniesPage />} />
               <Route path="/companies/:slug" element={<CompanyDetailPage />} />
               <Route path="/leads" element={<LeadsPage />} />
+              <Route path="/campaigns" element={<CampaignsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
