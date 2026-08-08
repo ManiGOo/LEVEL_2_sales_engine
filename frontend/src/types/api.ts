@@ -122,6 +122,7 @@ export interface LeadHiring {
   location?: string
   posted?: string
   url?: string
+  relevance_score?: number | null
 }
 
 export interface LeadHiringNews {
@@ -130,6 +131,24 @@ export interface LeadHiringNews {
   source?: string
   snippet?: string
   date?: string
+  relevance_score?: number | null
+}
+
+export interface DecisionMaker {
+  name: string
+  role: string
+  role_type: string
+  linkedin_url?: string
+  email?: string
+}
+
+export interface IntentSignal {
+  category: string
+  title: string
+  url: string
+  snippet?: string
+  date?: string
+  relevance_score?: number | null
 }
 
 export interface Lead {
@@ -137,6 +156,11 @@ export interface Lead {
   company_name: string
   website: string
   linkedin_url: string
+  company_status: string
+  decision_makers: DecisionMaker[]
+  intent_signals: IntentSignal[]
+  trigger_events: IntentSignal[]
+  activity_summary: string
   hiring: LeadHiring[]
   hiring_news: LeadHiringNews[]
   hiring_headline: string

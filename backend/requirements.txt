@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+openpyxl
 sqlalchemy[asyncio]
 asyncpg
 pydantic

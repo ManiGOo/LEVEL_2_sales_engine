@@ -1,9 +1,13 @@
-import type { Lead } from '@/types/api'
+import type { Lead, DecisionMaker, IntentSignal } from '@/types/api'
 import {
   Building2,
   Briefcase,
   Globe,
-  Newspaper,
+  UserCircle,
+  Mail,
+  ExternalLink,
+  Activity,
+  AlertTriangle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -15,36 +19,115 @@ function LinkedInIcon({ size = 16 }: { size?: number }) {
   )
 }
 
+function RelevancePill({ score }: { score?: number | null }) {
+  if (score == null) return null
+  const color = score >= 70 ? 'text-emerald-400' : score >= 50 ? 'text-amber-400' : 'text-red-400'
+  return <span className={cn('shrink-0 font-semibold', color)}>{score}%</span>
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    active: 'bg-emerald-500/15 text-emerald-400',
+    dormant: 'bg-amber-500/15 text-amber-400',
+    unknown: 'bg-slate-500/15 text-slate-400',
+  }
+  return (
+    <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide', map[status] || map.unknown)}>
+      {status}
+    </span>
+  )
+}
+
+function RoleIcon({ roleType }: { roleType: string }) {
+  if (roleType === 'qa_head' || roleType === 'qa_manager' || roleType === 'quality_personnel') return <Shield size={13} />
+  if (roleType === 'managing_director' || roleType === 'founder_ceo') return <UserCircle size={13} />
+  return <UserCircle size={13} />
+}
+
+function Shield({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  )
+}
+
+function SignalList({ items, icon: Icon, title }: { items: IntentSignal[]; icon: React.ComponentType<{ size?: number }>; title: string }) {
+  if (!items.length) return null
+  return (
+    <div>
+      <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">
+        <Icon size={12} />
+        {title} · {items.length}
+      </p>
+      <ul className="space-y-1.5">
+        {items.slice(0, 6).map((s, i) => (
+          <li key={`${s.url}-${i}`}>
+            <a href={s.url} target="_blank" rel="noreferrer" className="flex items-start justify-between gap-2 text-sm text-slate-300 hover:text-indigo-300 transition-colors">
+              <span className="min-w-0">
+                <span className="font-medium">{s.title}</span>
+                {s.snippet && <span className="text-[11px] text-slate-500 line-clamp-1"> · {s.snippet}</span>}
+              </span>
+              <span className="flex items-center gap-1 shrink-0">
+                <RelevancePill score={s.relevance_score} />
+                <ExternalLink size={10} className="text-slate-600" />
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function DecisionMakerCard({ dm }: { dm: DecisionMaker }) {
+  const isQA = dm.role_type === 'qa_head' || dm.role_type === 'qa_manager' || dm.role_type === 'quality_personnel'
+  return (
+    <div className="flex items-start gap-2.5 rounded-lg bg-slate-900/50 border border-white/5 p-2.5">
+      <div className={cn('mt-0.5', isQA ? 'text-emerald-400' : 'text-indigo-400')}>
+        <RoleIcon roleType={dm.role_type} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-white truncate">{dm.name}</p>
+        <p className="text-[11px] text-slate-400 truncate">{dm.role}</p>
+        <div className="flex items-center gap-2 mt-1">
+          {dm.linkedin_url && (
+            <a href={dm.linkedin_url} target="_blank" rel="noreferrer" className="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1">
+              <LinkedInIcon size={11} /> LinkedIn
+            </a>
+          )}
+          {dm.email && (
+            <a href={`mailto:${dm.email}`} className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1">
+              <Mail size={11} /> {dm.email}
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function LeadResultContent({ lead }: { lead: Lead }) {
   return (
-    <div className="p-4 sm:p-6 space-y-4">
+    <div className="p-4 sm:p-6 space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-lg sm:text-xl font-semibold text-white truncate">{lead.company_name}</h3>
-          {lead.hiring_headline && (
-            <p className="text-sm text-indigo-300/80 mt-0.5">{lead.hiring_headline}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-lg sm:text-xl font-semibold text-white truncate">{lead.company_name}</h3>
+            <StatusBadge status={lead.company_status} />
+          </div>
+          {lead.activity_summary && (
+            <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">{lead.activity_summary}</p>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {lead.website && (
-            <a
-              href={lead.website}
-              target="_blank"
-              rel="noreferrer"
-              title={lead.website}
-              className="p-2 rounded-lg bg-white/5 hover:bg-indigo-500/20 text-slate-300 hover:text-indigo-300 transition-colors"
-            >
+            <a href={lead.website} target="_blank" rel="noreferrer" title={lead.website} className="p-2 rounded-lg bg-white/5 hover:bg-indigo-500/20 text-slate-300 hover:text-indigo-300 transition-colors">
               <Globe size={15} />
             </a>
           )}
           {lead.linkedin_url && (
-            <a
-              href={lead.linkedin_url}
-              target="_blank"
-              rel="noreferrer"
-              title={lead.linkedin_url}
-              className="p-2 rounded-lg bg-white/5 hover:bg-sky-500/20 text-slate-300 hover:text-sky-300 transition-colors"
-            >
+            <a href={lead.linkedin_url} target="_blank" rel="noreferrer" title={lead.linkedin_url} className="p-2 rounded-lg bg-white/5 hover:bg-sky-500/20 text-slate-300 hover:text-sky-300 transition-colors">
               <LinkedInIcon size={15} />
             </a>
           )}
@@ -52,71 +135,41 @@ export function LeadResultContent({ lead }: { lead: Lead }) {
       </div>
 
       {lead.website && (
-        <a
-          href={lead.website}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-2 text-sm text-indigo-300/90 hover:text-indigo-200 underline underline-offset-2 break-all"
-        >
+        <a href={lead.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-indigo-300/90 hover:text-indigo-200 underline underline-offset-2 break-all">
           <Globe size={14} className="shrink-0" />
           {lead.website}
         </a>
       )}
 
-      <div>
-        <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">
-          <Briefcase size={12} />
-          Job openings · {lead.hiring.length}
-        </p>
-        {lead.hiring.length === 0 ? (
-          <p className="text-sm text-slate-600">No current job postings found.</p>
-        ) : (
+      {lead.decision_makers.length > 0 && (
+        <div>
+          <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">
+            <UserCircle size={12} />
+            Decision makers · {lead.decision_makers.length}
+          </p>
+          <div className="space-y-2">
+            {lead.decision_makers.map((dm, i) => (
+              <DecisionMakerCard key={`${dm.name}-${dm.linkedin_url}-${i}`} dm={dm} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {lead.hiring.length > 0 && (
+        <div>
+          <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">
+            <Briefcase size={12} />
+            Job openings · {lead.hiring.length}
+          </p>
           <ul className="space-y-1.5">
             {lead.hiring.slice(0, 8).map((h, i) => (
               <li key={`${h.title}-${i}`}>
-                <a
-                  href={h.url || '#'}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={cn(
-                    'flex items-start justify-between gap-2 text-sm',
-                    h.url
-                      ? 'text-slate-300 hover:text-indigo-300 transition-colors'
-                      : 'text-slate-300'
-                  )}
-                >
+                <a href={h.url || '#'} target="_blank" rel="noreferrer" className="flex items-start justify-between gap-2 text-sm text-slate-300 hover:text-indigo-300 transition-colors">
                   <span className="min-w-0 truncate">{h.title}</span>
                   <span className="flex items-center gap-2 shrink-0 text-[11px] text-slate-500">
                     {h.location && <span className="hidden sm:inline">{h.location}</span>}
                     {h.posted && <span>{h.posted}</span>}
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {lead.hiring_news.length > 0 && (
-        <div>
-          <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">
-            <Newspaper size={12} />
-            Hiring news
-          </p>
-          <ul className="space-y-1.5">
-            {lead.hiring_news.slice(0, 6).map((n, i) => (
-              <li key={`${n.url}-${i}`}>
-                <a
-                  href={n.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block text-sm text-slate-300 hover:text-indigo-300 transition-colors"
-                >
-                  <span className="font-medium">{n.title}</span>
-                  <span className="text-[11px] text-slate-500">
-                    {' '}
-                    · {n.source || 'web'}
-                    {n.date && ` · ${n.date}`}
+                    <RelevancePill score={h.relevance_score} />
                   </span>
                 </a>
               </li>
@@ -124,6 +177,9 @@ export function LeadResultContent({ lead }: { lead: Lead }) {
           </ul>
         </div>
       )}
+
+      <SignalList items={lead.intent_signals} icon={Activity} title="Activity signals" />
+      <SignalList items={lead.trigger_events} icon={AlertTriangle} title="QMS triggers" />
     </div>
   )
 }
@@ -135,7 +191,7 @@ export function LeadPlaceholderCard({ companyName }: { companyName: string }) {
       <h3 className="text-lg font-semibold text-white truncate">{companyName}</h3>
       <p className="text-sm text-slate-400">
         No research found yet. Select the checkbox and click <strong>Research selected</strong>{' '}
-        to discover hiring signals, website and LinkedIn data.
+        to discover decision makers, activity signals and QMS triggers.
       </p>
     </div>
   )

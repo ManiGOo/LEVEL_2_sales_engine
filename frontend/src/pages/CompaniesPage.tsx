@@ -5,8 +5,9 @@ import type { CompanyPage } from '@/types/api'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ScoreGauge } from '@/components/ui/ScoreGauge'
-import { Building2, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { showToast } from '@/components/ui/toast'
 
 const PAGE_SIZE = 30
 
@@ -20,6 +21,35 @@ function rankBadge(rank: number) {
 export default function CompaniesPage() {
   const { fetchApi } = useApi()
   const [page, setPage] = useState(1)
+  const [downloading, setDownloading] = useState(false)
+
+  async function downloadExcel() {
+    if (downloading) return
+    setDownloading(true)
+    try {
+      const res = await fetchApi('/api/v1/reports/companies.xlsx')
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        throw new Error(j.detail || 'Report generation failed')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const stamp = new Date().toISOString().slice(0, 10)
+      a.href = url
+      a.download = `sentinel-company-report-${stamp}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      showToast({ variant: 'success', title: 'Excel downloaded', description: 'General List + NSQ tabs included' })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Download failed'
+      showToast({ variant: 'error', title: 'Download failed', description: msg })
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const { data, isFetching } = useQuery({
     queryKey: ['companies', 'ranking', page],
@@ -55,6 +85,19 @@ export default function CompaniesPage() {
             {data?.total != null ? `${data.total.toLocaleString()} companies` : 'All companies'} ranked by lead score
           </p>
         </div>
+        <button
+          onClick={downloadExcel}
+          disabled={downloading}
+          className="inline-flex items-center gap-2 shrink-0 px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm font-semibold text-white"
+        >
+          {downloading ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <FileSpreadsheet size={16} />
+          )}
+          {downloading ? 'Generating…' : 'Download Excel'}
+          {!downloading && <Download size={14} className="text-white/70" />}
+        </button>
       </div>
 
       {isFetching ? (
