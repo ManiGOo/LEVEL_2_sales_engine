@@ -152,6 +152,29 @@ export interface IntentSignal {
   relevance_score?: number | null
 }
 
+export interface CampaignLead {
+  company_key: string
+  status: string
+  current_step: number
+  decision_maker: DecisionMaker
+  messages: { step: number; channel: string; subject: string; body: string; status: string; sent_at?: string }[]
+  last_contact_at?: string | null
+  replied_at?: string | null
+}
+
+export interface Campaign {
+  campaign_id: string
+  name: string
+  status: string
+  lead_count: number
+  sequence_config: { step?: number; channel: string; delay_days: number; template?: string }[]
+  created_at?: string | null
+  started_at?: string | null
+  completed_at?: string | null
+  workflow_id?: string
+  leads?: CampaignLead[]
+}
+
 export interface Lead {
   company_key: string
   company_name: string

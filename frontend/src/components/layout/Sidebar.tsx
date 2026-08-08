@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'motion/react'
-import { MessageSquare, LayoutDashboard, Building2, Target, X, LogOut } from 'lucide-react'
+import { MessageSquare, LayoutDashboard, Building2, Target, Mail, X, LogOut } from 'lucide-react'
 import Logo from './Logo'
 import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/lib/utils'
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/chat', icon: MessageSquare, label: 'AI Chat' },
   { to: '/companies', icon: Building2, label: 'Companies' },
   { to: '/leads', icon: Target, label: 'Leads' },
+  { to: '/campaigns', icon: Mail, label: 'Campaigns' },
 ]
 
 interface SidebarProps {

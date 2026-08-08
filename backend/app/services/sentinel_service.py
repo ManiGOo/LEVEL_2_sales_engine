@@ -68,6 +68,34 @@ async def get_lead_status() -> dict:
         return resp.json()
 
 
+async def get_campaigns() -> dict:
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/campaigns")
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def get_campaign(campaign_id: str) -> dict:
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/campaigns/{campaign_id}")
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def create_campaign(data: dict) -> dict:
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.post(f"{settings.sentinel_api_url}/api/v1/campaigns", json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def start_campaign(campaign_id: str) -> dict:
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.post(f"{settings.sentinel_api_url}/api/v1/campaigns/{campaign_id}/start")
+        resp.raise_for_status()
+        return resp.json()
+
+
 async def get_lead_detail(company_key: str) -> dict:
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.get(f"{settings.sentinel_api_url}/api/v1/leads/{company_key}")

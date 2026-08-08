@@ -7,6 +7,7 @@ from app.api.v1.conversations import router as conversations_router
 from app.api.v1.web_evidence import router as web_evidence_router
 from app.api.v1.leads import router as leads_router
 from app.api.v1.reports import router as reports_router
+from app.api.v1.campaigns import router as campaigns_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(auth_router)
@@ -17,3 +18,4 @@ router.include_router(conversations_router)
 router.include_router(web_evidence_router)
 router.include_router(leads_router)
 router.include_router(reports_router)
+router.include_router(campaigns_router)
