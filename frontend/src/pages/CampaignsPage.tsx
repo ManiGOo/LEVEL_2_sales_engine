@@ -178,6 +178,12 @@ function CreateCampaignModal({
   const { fetchApi } = useApi()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [objective, setObjective] = useState('')
+  const [audience, setAudience] = useState('')
+  const [offer, setOffer] = useState('')
+  const [sender, setSender] = useState('')
+  const [stopConditions, setStopConditions] = useState('Stop on reply, bounce, unsubscribe, or do-not-contact request.')
+  const [channels, setChannels] = useState<string[]>(['email'])
   const [seeds, setSeeds] = useState<LeadSeed[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -196,6 +202,12 @@ function CreateCampaignModal({
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim(),
+          objective: objective.trim(),
+          target_audience: audience.trim(),
+          offer_context: offer.trim(),
+          sender_identity: sender.trim(),
+          approved_channels: channels,
+          stop_conditions: stopConditions.trim(),
           leads: seeds,
         }),
       })
@@ -206,6 +218,11 @@ function CreateCampaignModal({
       setSeeds([])
       setName('')
       setDescription('')
+      setObjective('')
+      setAudience('')
+      setOffer('')
+      setSender('')
+      setChannels(['email'])
       onCreated()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Something went wrong'
@@ -227,6 +244,36 @@ function CreateCampaignModal({
             placeholder="e.g. QMS Outreach — North India"
             className="mt-1 w-full px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-colors"
           />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Sender identity</label>
+            <input value={sender} onChange={(e) => setSender(e.target.value)} placeholder="e.g. sales@yourcompany.com" className="mt-1 w-full px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Approved channels</label>
+            <div className="flex items-center gap-3 mt-2 text-xs text-slate-300">
+              {['email', 'linkedin'].map((channel) => <label key={channel} className="inline-flex items-center gap-1.5"><input type="checkbox" checked={channels.includes(channel)} onChange={(e) => setChannels((prev) => e.target.checked ? [...prev, channel] : prev.filter((x) => x !== channel))} className="accent-indigo-500" /> {channel}</label>)}
+            </div>
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Stop conditions</label>
+          <input value={stopConditions} onChange={(e) => setStopConditions(e.target.value)} className="mt-1 w-full px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Objective</label>
+            <input value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="e.g. Book QMS discovery calls" className="mt-1 w-full px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Target audience</label>
+            <input value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="e.g. QA and operations leaders" className="mt-1 w-full px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Offer and context</label>
+          <textarea value={offer} onChange={(e) => setOffer(e.target.value)} placeholder="What are we offering, and why is this company being contacted?" rows={2} className="mt-1 w-full px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 resize-y" />
         </div>
         <div>
           <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Description</label>

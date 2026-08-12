@@ -15,6 +15,14 @@ export interface LeadSeed {
   contact_name: string
   contact_role: string
   contact_email: string
+  contact_source: string
+  contact_source_url: string
+  contact_evidence: string
+  contact_confidence: string
+  verification_status: string
+  outreach_readiness: string
+  verified_at: string | null
+  do_not_contact: boolean
 }
 
 const STATUS_BTN =
@@ -76,10 +84,18 @@ export default function LeadsPickerModal({
             company_key: l.company_key,
             company_name: l.company_name || l.company_key,
             website: l.website || '',
-            linkedin_url: l.linkedin_url || '',
+            linkedin_url: dm.linkedin_url || l.linkedin_url || '',
             contact_name: dm.name || '',
             contact_role: dm.role || '',
             contact_email: dm.email || '',
+            contact_source: dm.source || '',
+            contact_source_url: dm.source_url || '',
+            contact_evidence: '',
+            contact_confidence: dm.confidence || '',
+            verification_status: dm.confidence === 'high' ? 'verified' : 'needs_review',
+            outreach_readiness: dm.email ? 'ready_for_email' : dm.linkedin_url ? 'ready_for_linkedin' : 'missing_contact_info',
+            verified_at: dm.confidence === 'high' ? new Date().toISOString() : null,
+            do_not_contact: false,
           }
         })
         .filter((s): s is LeadSeed => !!s)
@@ -162,6 +178,7 @@ export default function LeadsPickerModal({
                             {dm.confidence}
                           </span>
                         )}
+                        {dm.source && <span className="text-[9px] text-slate-500">from {dm.source.replace('_', ' ')}</span>}
                       </button>
                     )
                   })}

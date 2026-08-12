@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, Text, ForeignKey
+from sqlalchemy import String, DateTime, Text, ForeignKey, JSON, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -12,6 +12,14 @@ class Campaign(Base):
     name: Mapped[str] = mapped_column(String(255), index=True)
     description: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="draft")  # draft | active | completed | archived
+    objective: Mapped[str | None] = mapped_column(Text)
+    target_audience: Mapped[str | None] = mapped_column(Text)
+    offer_context: Mapped[str | None] = mapped_column(Text)
+    sender_identity: Mapped[str | None] = mapped_column(String(255))
+    approved_channels: Mapped[list] = mapped_column(JSON, default=list)
+    daily_send_limit: Mapped[int] = mapped_column(Integer, default=20)
+    stop_conditions: Mapped[str | None] = mapped_column(Text)
+    preflight_complete: Mapped[bool] = mapped_column(default=False)
 
     created_by: Mapped[str | None] = mapped_column(String(36))
     created_by_name: Mapped[str | None] = mapped_column(String(255))
@@ -43,6 +51,14 @@ class CampaignLead(Base):
     contact_role: Mapped[str | None] = mapped_column(String(255))
     contact_email: Mapped[str | None] = mapped_column(String(255))
     contact_phone: Mapped[str | None] = mapped_column(String(255))
+    contact_source: Mapped[str | None] = mapped_column(String(100))
+    contact_source_url: Mapped[str | None] = mapped_column(String(1000))
+    contact_evidence: Mapped[str | None] = mapped_column(Text)
+    contact_confidence: Mapped[str | None] = mapped_column(String(20))
+    verification_status: Mapped[str] = mapped_column(String(30), default="needs_review")
+    outreach_readiness: Mapped[str] = mapped_column(String(40), default="needs_user_review")
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    do_not_contact: Mapped[bool] = mapped_column(default=False)
 
     status: Mapped[str] = mapped_column(String(20), default="queued")  # queued | contacted | replied | not_interested | closed
     last_contact_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

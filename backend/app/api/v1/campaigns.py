@@ -61,7 +61,10 @@ async def update_campaign(
     db: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    campaign = await campaign_service.update_campaign(db, campaign_id, data, user)
+    try:
+        campaign = await campaign_service.update_campaign(db, campaign_id, data, user)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
     return campaign

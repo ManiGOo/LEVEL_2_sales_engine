@@ -164,6 +164,14 @@ export interface CampaignLead {
   contact_role: string
   contact_email: string
   contact_phone: string
+  contact_source?: string
+  contact_source_url?: string
+  contact_evidence?: string
+  contact_confidence?: string
+  verification_status: string
+  outreach_readiness: string
+  verified_at?: string | null
+  do_not_contact: boolean
   status: string
   last_contact_at: string | null
   next_follow_up_at: string | null
@@ -178,6 +186,14 @@ export interface Campaign {
   name: string
   description: string
   status: string
+  objective?: string
+  target_audience?: string
+  offer_context?: string
+  sender_identity?: string
+  approved_channels?: string[]
+  daily_send_limit?: number
+  stop_conditions?: string
+  preflight_complete?: boolean
   created_by_name: string
   created_at: string
   updated_at: string
@@ -194,6 +210,7 @@ export interface CampaignSummary {
   created_at: string
   updated_at: string
   lead_count: number
+  preflight_complete?: boolean
 }
 
 export interface CampaignPage {

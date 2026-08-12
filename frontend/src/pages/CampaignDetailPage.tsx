@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
@@ -40,6 +40,8 @@ export default function CampaignDetailPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [editingContext, setEditingContext] = useState(false)
+  const [context, setContext] = useState({ objective: '', target_audience: '', offer_context: '', sender_identity: '', stop_conditions: '', approved_channels: ['email'] as string[] })
 
   const { data, isFetching } = useQuery({
     queryKey: ['campaign', campaignId],
@@ -53,6 +55,14 @@ export default function CampaignDetailPage() {
   const campaign = data?.campaign
   const activities = data?.activities || []
   const leads = campaign?.leads || []
+
+  useEffect(() => {
+    if (campaign) setContext({
+      objective: campaign.objective || '', target_audience: campaign.target_audience || '',
+      offer_context: campaign.offer_context || '', sender_identity: campaign.sender_identity || '',
+      stop_conditions: campaign.stop_conditions || '', approved_channels: campaign.approved_channels || [],
+    })
+  }, [campaign?.id, campaign?.updated_at])
 
   const filteredLeads = useMemo(() => {
     return leads.filter((l) => {
@@ -81,6 +91,18 @@ export default function CampaignDetailPage() {
       invalidate()
     } catch (e) {
       showToast({ variant: 'error', title: 'Failed', description: e instanceof Error ? e.message : 'Error' })
+    }
+  }
+
+  async function saveContext() {
+    try {
+      const res = await fetchApi(`/api/v1/campaigns/${campaignId}`, { method: 'PATCH', body: JSON.stringify(context) })
+      if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.detail || 'Update failed') }
+      setEditingContext(false)
+      invalidate()
+      showToast({ variant: 'success', title: 'Preflight saved', description: 'Campaign context updated' })
+    } catch (e) {
+      showToast({ variant: 'error', title: 'Could not save', description: e instanceof Error ? e.message : 'Error' })
     }
   }
 
@@ -185,6 +207,21 @@ export default function CampaignDetailPage() {
               <p className="text-[10px] uppercase tracking-wide text-slate-500 mt-0.5">{s.replace('_', ' ')}</p>
             </button>
           ))}
+        </div>
+        <div className={cn('rounded-lg border px-3 py-3 text-xs', campaign.preflight_complete ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-amber-500/20 bg-amber-500/5')}>
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-slate-200">Outreach preflight</span>
+            <span className={campaign.preflight_complete ? 'text-emerald-400' : 'text-amber-400'}>{campaign.preflight_complete ? 'Complete' : 'Draft only'}</span>
+          </div>
+          <p className="text-slate-400 mt-1">{campaign.objective || 'Add an objective'} · {campaign.target_audience || 'Add a target audience'} · {campaign.sender_identity || 'Choose a sender'}</p>
+          <p className="text-slate-500 mt-1">Channels: {(campaign.approved_channels || []).join(', ') || 'none'} · Stop conditions: {campaign.stop_conditions || 'not configured'}</p>
+          <button onClick={() => setEditingContext((v) => !v)} className="mt-2 text-indigo-300 hover:text-indigo-200 font-semibold">{editingContext ? 'Hide editor' : 'Edit preflight'}</button>
+          {editingContext && <div className="mt-3 grid sm:grid-cols-2 gap-2">
+            {(['objective', 'target_audience', 'sender_identity', 'stop_conditions'] as const).map((field) => <input key={field} value={context[field]} onChange={(e) => setContext((c) => ({ ...c, [field]: e.target.value }))} placeholder={field.replace('_', ' ')} className={cn(inputClass, 'text-xs')} />)}
+            <textarea value={context.offer_context} onChange={(e) => setContext((c) => ({ ...c, offer_context: e.target.value }))} placeholder="offer context" rows={2} className={cn(inputClass, 'text-xs resize-y')} />
+            <div className="flex items-center gap-3 text-slate-300"><span>Channels</span>{['email', 'linkedin'].map((channel) => <label key={channel} className="inline-flex items-center gap-1"><input type="checkbox" checked={context.approved_channels.includes(channel)} onChange={(e) => setContext((c) => ({ ...c, approved_channels: e.target.checked ? [...c.approved_channels, channel] : c.approved_channels.filter((x) => x !== channel) }))} className="accent-indigo-500" />{channel}</label>)}</div>
+            <button onClick={saveContext} className="sm:col-span-2 justify-self-start px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-xs font-semibold text-white">Save preflight</button>
+          </div>}
         </div>
       </div>
 
@@ -374,16 +411,26 @@ function LeadRow({ campaignId, lead, onChanged }: { campaignId: string; lead: Ca
                 <Mail size={11} /> {lead.linkedin_url}
               </span>
             )}
+            {lead.contact_source && (
+              lead.contact_source_url ? (
+                <a href={lead.contact_source_url} target="_blank" rel="noreferrer" className="text-[11px] text-slate-400 hover:text-indigo-300 inline-flex items-center gap-1">
+                  Verified from {lead.contact_source.replace('_', ' ')}
+                </a>
+              ) : <span className="text-[11px] text-slate-400">Verified from {lead.contact_source.replace('_', ' ')}</span>
+            )}
+            <span className={cn('text-[10px] px-1.5 py-0.5 rounded', lead.verification_status === 'verified' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400')}>
+              {lead.verification_status.replace('_', ' ')}
+            </span>
             <span className="text-[11px] text-slate-500">added by {lead.created_by_name || 'teammate'}</span>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={logContact}
-            disabled={logging}
+            <button
+              onClick={logContact}
+              disabled={logging || lead.do_not_contact || lead.outreach_readiness === 'missing_contact_info'}
             className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-xs font-semibold text-white transition-colors"
-          >
-            Log contact
+            >
+            {lead.do_not_contact ? 'Do not contact' : lead.outreach_readiness === 'missing_contact_info' ? 'Needs contact info' : 'Log contact'}
           </button>
           <select
             value={lead.status}
