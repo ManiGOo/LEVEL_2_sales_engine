@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils'
 import { Modal } from '@/components/ui/Modal'
 import { LeadResultContent, LeadPlaceholderCard } from '@/components/leads/LeadResultContent'
 import { showToast, dismissToast } from '@/components/ui/toast'
+import SegmentedTabs from '@/components/general/SegmentedTabs'
+import GeneralCompaniesView from '@/components/general/GeneralCompaniesView'
 
 const PAGE_SIZE = 30
 const MAX_SELECT = 10
@@ -246,6 +248,7 @@ function CompanyCard({
 export default function LeadsPage() {
   const { fetchApi } = useApi()
   const queryClient = useQueryClient()
+  const [tab, setTab] = useState('discover')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [triggered, setTriggered] = useState(false)
@@ -406,6 +409,20 @@ export default function LeadsPage() {
           up to {MAX_SELECT} and research them
         </p>
       </div>
+
+      <SegmentedTabs
+        tabs={[
+          { key: 'discover', label: 'Discover' },
+          { key: 'general', label: 'General leads' },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
+
+      {tab === 'general' ? (
+        <GeneralCompaniesView />
+      ) : (
+      <>
 
       {hasSelection && (
         <>
@@ -606,6 +623,8 @@ export default function LeadsPage() {
             return <LeadResultContent lead={lead} />
           })()}
       </Modal>
+      </>
+      )}
     </motion.div>
   )
 }

@@ -92,6 +92,17 @@ function ConfidenceBadge({ confidence }: { confidence?: string }) {
   return <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide', m.cls)}>{m.label}</span>
 }
 
+function SourceLink({ dm }: { dm: DecisionMaker }) {
+  if (!dm.source && !dm.source_url) return null
+  const label = dm.source === 'corporate_registry' ? 'Corporate registry' :
+    dm.source === 'company_website' ? 'Company website' : 'Web search'
+  return dm.source_url ? (
+    <a href={dm.source_url} target="_blank" rel="noreferrer" className="text-[10px] text-slate-500 hover:text-indigo-300 inline-flex items-center gap-1">
+      Verified from {label} <ExternalLink size={9} />
+    </a>
+  ) : <span className="text-[10px] text-slate-500">Verified from {label}</span>
+}
+
 function DecisionMakerCard({ dm }: { dm: DecisionMaker }) {
   const isQA = dm.role_type === 'qa_head' || dm.role_type === 'qa_manager' || dm.role_type === 'quality_personnel'
   const isHighConfidence = dm.confidence === 'high'
@@ -124,6 +135,7 @@ function DecisionMakerCard({ dm }: { dm: DecisionMaker }) {
             </a>
           )}
         </div>
+        <SourceLink dm={dm} />
       </div>
     </div>
   )

@@ -141,6 +141,8 @@ export interface DecisionMaker {
   linkedin_url?: string
   email?: string
   confidence?: string
+  source?: string
+  source_url?: string
 }
 
 export interface IntentSignal {
@@ -153,26 +155,67 @@ export interface IntentSignal {
 }
 
 export interface CampaignLead {
+  id: string
   company_key: string
+  company_name: string
+  website: string
+  linkedin_url: string
+  contact_name: string
+  contact_role: string
+  contact_email: string
+  contact_phone: string
   status: string
-  current_step: number
-  decision_maker: DecisionMaker
-  messages: { step: number; channel: string; subject: string; body: string; status: string; sent_at?: string }[]
-  last_contact_at?: string | null
-  replied_at?: string | null
+  last_contact_at: string | null
+  next_follow_up_at: string | null
+  notes: string
+  created_by_name: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Campaign {
-  campaign_id: string
+  id: string
   name: string
+  description: string
   status: string
+  created_by_name: string
+  created_at: string
+  updated_at: string
   lead_count: number
-  sequence_config: { step?: number; channel: string; delay_days: number; template?: string }[]
-  created_at?: string | null
-  started_at?: string | null
-  completed_at?: string | null
-  workflow_id?: string
-  leads?: CampaignLead[]
+  leads: CampaignLead[]
+}
+
+export interface CampaignSummary {
+  id: string
+  name: string
+  description: string
+  status: string
+  created_by_name: string
+  created_at: string
+  updated_at: string
+  lead_count: number
+}
+
+export interface CampaignPage {
+  items: CampaignSummary[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}
+
+export interface CampaignActivity {
+  id: string
+  lead_id: string | null
+  actor_name: string
+  action: string
+  detail: string
+  created_at: string
+}
+
+export interface CampaignDetail {
+  campaign: Campaign
+  activities: CampaignActivity[]
 }
 
 export interface Lead {
@@ -192,4 +235,40 @@ export interface Lead {
   error: string
   workflow_id: string
   fetched_at: string | null
+}
+
+export interface GeneralCompany {
+  id: string
+  company_key: string
+  name: string
+  website: string
+  linkedin_url: string
+  company_status: string
+  industry: string
+  description: string
+  location: string
+  employees: string
+  revenue: string
+  email: string
+  phone: string
+  hiring_headline: string
+  activity_summary: string
+  notes: string
+  decision_makers: DecisionMaker[]
+  hiring: LeadHiring[]
+  hiring_news: LeadHiringNews[]
+  intent_signals: IntentSignal[]
+  trigger_events: IntentSignal[]
+  created_by: string
+  created_by_name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface GeneralCompanyPage {
+  items: GeneralCompany[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
 }

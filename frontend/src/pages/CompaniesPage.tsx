@@ -8,6 +8,8 @@ import { ScoreGauge } from '@/components/ui/ScoreGauge'
 import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { showToast } from '@/components/ui/toast'
+import SegmentedTabs from '@/components/general/SegmentedTabs'
+import GeneralCompaniesView from '@/components/general/GeneralCompaniesView'
 
 const PAGE_SIZE = 30
 
@@ -20,6 +22,7 @@ function rankBadge(rank: number) {
 
 export default function CompaniesPage() {
   const { fetchApi } = useApi()
+  const [tab, setTab] = useState('automated')
   const [page, setPage] = useState(1)
   const [downloading, setDownloading] = useState(false)
 
@@ -99,6 +102,20 @@ export default function CompaniesPage() {
           {!downloading && <Download size={14} className="text-white/70" />}
         </button>
       </div>
+
+      <SegmentedTabs
+        tabs={[
+          { key: 'automated', label: 'Automated' },
+          { key: 'general', label: 'General' },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
+
+      {tab === 'general' ? (
+        <GeneralCompaniesView />
+      ) : (
+      <>
 
       {isFetching ? (
         <div className="space-y-3">
@@ -181,6 +198,8 @@ export default function CompaniesPage() {
             </button>
           </div>
         </div>
+      )}
+      </>
       )}
     </motion.div>
   )
