@@ -37,6 +37,7 @@ async def ensure_campaign_lead_schema() -> None:
         "outreach_readiness": "VARCHAR(40) NOT NULL DEFAULT 'needs_user_review'",
         "verified_at": "TIMESTAMP",
         "do_not_contact": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "contact_id": "VARCHAR(36)",
     }
 
     async with engine.begin() as conn:

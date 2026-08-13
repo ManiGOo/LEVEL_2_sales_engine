@@ -35,6 +35,34 @@ class Campaign(Base):
         cascade="all, delete-orphan",
         order_by="CampaignLead.created_at",
     )
+    messages: Mapped[list["OutreachMessage"]] = relationship(
+        back_populates="campaign", cascade="all, delete-orphan", order_by="OutreachMessage.created_at.desc()"
+    )
+
+
+class Contact(Base):
+    __tablename__ = "contacts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    company_key: Mapped[str] = mapped_column(String(255), index=True)
+    company_name: Mapped[str] = mapped_column(String(255))
+    name: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str | None] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(255), index=True)
+    phone: Mapped[str | None] = mapped_column(String(255))
+    linkedin_url: Mapped[str | None] = mapped_column(String(500))
+    source: Mapped[str | None] = mapped_column(String(100))
+    source_url: Mapped[str | None] = mapped_column(String(1000))
+    evidence: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[str | None] = mapped_column(String(20))
+    verification_status: Mapped[str] = mapped_column(String(30), default="needs_review")
+    outreach_readiness: Mapped[str] = mapped_column(String(40), default="needs_user_review")
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    do_not_contact: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    campaign_leads: Mapped[list["CampaignLead"]] = relationship(back_populates="contact")
 
 
 class CampaignLead(Base):
@@ -59,6 +87,7 @@ class CampaignLead(Base):
     outreach_readiness: Mapped[str] = mapped_column(String(40), default="needs_user_review")
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     do_not_contact: Mapped[bool] = mapped_column(default=False)
+    contact_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("contacts.id", ondelete="SET NULL"), index=True)
 
     status: Mapped[str] = mapped_column(String(20), default="queued")  # queued | contacted | replied | not_interested | closed
     last_contact_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -79,6 +108,8 @@ class CampaignLead(Base):
         cascade="all, delete-orphan",
         order_by="CampaignActivity.created_at.desc()",
     )
+    contact: Mapped["Contact | None"] = relationship(back_populates="campaign_leads")
+    messages: Mapped[list["OutreachMessage"]] = relationship(back_populates="lead", cascade="all, delete-orphan")
 
 
 class CampaignActivity(Base):
@@ -93,3 +124,23 @@ class CampaignActivity(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     lead: Mapped["CampaignLead | None"] = relationship(back_populates="activities")
+
+
+class OutreachMessage(Base):
+    __tablename__ = "outreach_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    campaign_id: Mapped[str] = mapped_column(String(36), ForeignKey("campaigns.id", ondelete="CASCADE"), index=True)
+    lead_id: Mapped[str] = mapped_column(String(36), ForeignKey("campaign_leads.id", ondelete="CASCADE"), index=True)
+    channel: Mapped[str] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(30), default="draft")
+    subject: Mapped[str | None] = mapped_column(String(500))
+    body: Mapped[str] = mapped_column(Text)
+    generated_by: Mapped[str] = mapped_column(String(30), default="system")
+    approved_by: Mapped[str | None] = mapped_column(String(255))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    campaign: Mapped["Campaign"] = relationship(back_populates="messages")
+    lead: Mapped["CampaignLead"] = relationship(back_populates="messages")

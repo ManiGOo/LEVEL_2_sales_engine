@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from app.models.campaign import Campaign, CampaignLead, CampaignActivity
+from app.models.campaign import Campaign, CampaignLead, CampaignActivity, Contact, OutreachMessage
 from app.models.user import User
 from app.schemas.campaign import (
     CampaignCreate,
@@ -15,6 +15,7 @@ from app.schemas.campaign import (
     CampaignPage,
     CampaignDetail,
     CampaignActivityResponse,
+    OutreachMessageResponse,
 )
 
 
@@ -82,7 +83,7 @@ async def create_campaign(db: AsyncSession, data: CampaignCreate, user: User) ->
     await db.flush()
 
     for seed in data.leads:
-        db.add(_to_lead(campaign.id, seed, user))
+        db.add(await _to_lead(db, campaign.id, seed, user))
         await _log(db, campaign.id, "lead_added", _actor(user), detail=f"Added {seed.company_name or seed.company_key}", lead_id=None)
 
     await _log(db, campaign.id, "created", _actor(user), detail=f"Campaign '{campaign.name}' created")
@@ -91,7 +92,8 @@ async def create_campaign(db: AsyncSession, data: CampaignCreate, user: User) ->
     return await _with_leads(db, campaign.id)
 
 
-def _to_lead(campaign_id: str, seed: CampaignLeadSeed, user: User) -> CampaignLead:
+async def _to_lead(db: AsyncSession, campaign_id: str, seed: CampaignLeadSeed, user: User) -> CampaignLead:
+    contact = await _upsert_contact(db, seed)
     return CampaignLead(
         campaign_id=campaign_id,
         company_key=seed.company_key,
@@ -110,9 +112,35 @@ def _to_lead(campaign_id: str, seed: CampaignLeadSeed, user: User) -> CampaignLe
         outreach_readiness=seed.outreach_readiness,
         verified_at=seed.verified_at,
         do_not_contact=seed.do_not_contact,
+        contact_id=contact.id,
         status="queued",
         created_by_name=_actor(user),
     )
+
+
+async def _upsert_contact(db: AsyncSession, seed: CampaignLeadSeed) -> Contact:
+    name = (seed.contact_name or "").strip() or "Unknown contact"
+    result = await db.execute(select(Contact).where(Contact.company_key == seed.company_key, Contact.name == name))
+    contact = result.scalar_one_or_none()
+    values = {
+        "company_key": seed.company_key, "company_name": seed.company_name or seed.company_key,
+        "name": name, "role": (seed.contact_role or "").strip() or None,
+        "email": (seed.contact_email or "").strip() or None, "phone": (seed.contact_phone or "").strip() or None,
+        "linkedin_url": (seed.linkedin_url or "").strip() or None,
+        "source": (seed.contact_source or "").strip() or None, "source_url": (seed.contact_source_url or "").strip() or None,
+        "evidence": (seed.contact_evidence or "").strip() or None, "confidence": (seed.contact_confidence or "").strip() or None,
+        "verification_status": seed.verification_status, "outreach_readiness": seed.outreach_readiness,
+        "verified_at": seed.verified_at, "do_not_contact": seed.do_not_contact,
+    }
+    if contact is None:
+        contact = Contact(**values)
+        db.add(contact)
+        await db.flush()
+    else:
+        for key, value in values.items():
+            if value not in (None, "") or key in {"verification_status", "outreach_readiness", "do_not_contact"}:
+                setattr(contact, key, value)
+    return contact
 
 
 async def list_campaigns(
@@ -166,8 +194,63 @@ async def get_campaign_detail(db: AsyncSession, campaign_id: str) -> CampaignDet
     )
     activities = act_result.scalars().all()
 
+    msg_result = await db.execute(select(OutreachMessage).where(OutreachMessage.campaign_id == campaign_id).order_by(OutreachMessage.created_at.desc()))
+    messages = msg_result.scalars().all()
     response = CampaignResponse.model_validate(campaign, from_attributes=True)
-    return CampaignDetail(campaign=response, activities=[CampaignActivityResponse.model_validate(a) for a in activities])
+    return CampaignDetail(campaign=response, activities=[CampaignActivityResponse.model_validate(a) for a in activities], messages=[OutreachMessageResponse.model_validate(m) for m in messages])
+
+
+def _draft_body(campaign: Campaign, lead: CampaignLead, channel: str) -> tuple[str | None, str]:
+    first_name = (lead.contact_name or "there").split()[0]
+    context = campaign.offer_context or campaign.description or ""
+    evidence = lead.contact_evidence or (f"I noticed your role as {lead.contact_role}." if lead.contact_role else "")
+    if channel == "email":
+        subject = f"{campaign.objective or 'A quick question'} — {lead.company_name}"
+        body = f"Hi {first_name},\n\nI’m reaching out because {lead.company_name} may be relevant to this initiative. {evidence}\n\n{context}\n\nWould a short conversation be useful?\n\nBest,\n{campaign.sender_identity or '[sender]'}"
+        return subject, body
+    body = f"Hi {first_name} — I’m reaching out because of your role at {lead.company_name}. {context} Would be glad to connect if this is relevant."
+    return None, body
+
+
+async def create_draft(db: AsyncSession, campaign_id: str, lead_id: str, channel: str, user: User) -> OutreachMessage | None:
+    if channel not in {"email", "linkedin"}:
+        raise ValueError("Only email and LinkedIn drafts are supported")
+    campaign = await _get_campaign(db, campaign_id)
+    if not campaign:
+        return None
+    lead = next((l for l in campaign.leads if l.id == lead_id), None)
+    if not lead:
+        return None
+    if lead.do_not_contact or lead.outreach_readiness in {"missing_contact_info", "needs_user_review", "blocked"}:
+        raise ValueError("Contact is not ready for outreach review")
+    if channel not in (campaign.approved_channels or []):
+        raise ValueError(f"Channel is not approved for this campaign: {channel}")
+    subject, body = _draft_body(campaign, lead, channel)
+    message = OutreachMessage(campaign_id=campaign_id, lead_id=lead_id, channel=channel, status="draft", subject=subject, body=body, generated_by="system")
+    db.add(message)
+    await _log(db, campaign_id, "message_drafted", _actor(user), detail=f"Drafted {channel} message for {lead.contact_name or lead.company_name}", lead_id=lead_id)
+    await db.commit()
+    await db.refresh(message)
+    return message
+
+
+async def update_message_status(db: AsyncSession, campaign_id: str, message_id: str, status: str, user: User) -> OutreachMessage | None:
+    if status not in {"approved", "rejected"}:
+        raise ValueError("Only approve or reject is allowed")
+    result = await db.execute(select(OutreachMessage).where(OutreachMessage.id == message_id, OutreachMessage.campaign_id == campaign_id))
+    message = result.scalar_one_or_none()
+    if not message:
+        return None
+    if message.status != "draft":
+        raise ValueError("Only draft messages can be reviewed")
+    message.status = status
+    if status == "approved":
+        message.approved_by = _actor(user)
+        message.approved_at = _now()
+    await _log(db, campaign_id, f"message_{status}", _actor(user), detail=f"{status.title()} {message.channel} draft", lead_id=message.lead_id)
+    await db.commit()
+    await db.refresh(message)
+    return message
 
 
 async def update_campaign(
@@ -249,7 +332,7 @@ async def add_lead(db: AsyncSession, campaign_id: str, seed: CampaignLeadSeed, u
     campaign = await _get_campaign(db, campaign_id)
     if not campaign:
         return None
-    lead = _to_lead(campaign_id, seed, user)
+    lead = await _to_lead(db, campaign_id, seed, user)
     db.add(lead)
     await db.flush()
     await _log(db, campaign_id, "lead_added", _actor(user), detail=f"Added {lead.company_name}", lead_id=lead.id)

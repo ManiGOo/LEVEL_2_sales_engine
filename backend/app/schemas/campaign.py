@@ -100,6 +100,7 @@ class CampaignLeadResponse(BaseModel):
     outreach_readiness: str
     verified_at: datetime | None = None
     do_not_contact: bool
+    contact_id: str | None = None
     status: str
     last_contact_at: datetime | None = None
     next_follow_up_at: datetime | None = None
@@ -155,6 +156,24 @@ class CampaignPage(BaseModel):
     pages: int
 
 
+class OutreachMessageResponse(BaseModel):
+    id: str
+    campaign_id: str
+    lead_id: str
+    channel: str
+    status: str
+    subject: str | None = None
+    body: str
+    generated_by: str
+    approved_by: str | None = None
+    approved_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class CampaignDetail(BaseModel):
     campaign: CampaignResponse
     activities: list[CampaignActivityResponse]
+    messages: list[OutreachMessageResponse] = []

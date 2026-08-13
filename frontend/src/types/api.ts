@@ -233,6 +233,22 @@ export interface CampaignActivity {
 export interface CampaignDetail {
   campaign: Campaign
   activities: CampaignActivity[]
+  messages: OutreachMessage[]
+}
+
+export interface OutreachMessage {
+  id: string
+  campaign_id: string
+  lead_id: string
+  channel: string
+  status: string
+  subject?: string | null
+  body: string
+  generated_by: string
+  approved_by?: string | null
+  approved_at?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Lead {

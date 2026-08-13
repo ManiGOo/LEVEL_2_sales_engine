@@ -42,6 +42,16 @@ The backend refuses to activate a campaign unless it has:
 
 This is a safety gate only. No email or LinkedIn sending has been enabled.
 
+### Normalized contacts and draft-only outreach
+
+- Added a reusable `contacts` table and linked campaign leads to a normalized contact record.
+- Re-adding the same company/contact updates the shared contact record instead of creating a separate identity record.
+- Added `outreach_messages` for channel-specific drafts with `draft`, `approved`, and `rejected` states.
+- Added draft-only email and LinkedIn message actions in campaign detail.
+- Drafts include campaign context and contact evidence, and can be explicitly approved or rejected.
+- Draft approvals record the reviewing user, timestamp, status, and an activity-log event.
+- There is intentionally no send endpoint or provider integration yet.
+
 ## Validation completed
 
 - Frontend TypeScript/Vite production build passes.
@@ -49,24 +59,23 @@ This is a safety gate only. No email or LinkedIn sending has been enabled.
 
 ## Not implemented yet
 
-- Separate normalized Contact and ContactVerification tables
+- ContactVerification history table (the current contact record stores the latest state)
 - Contact deduplication across campaigns
 - OAuth email integrations
-- Email drafting, approval, sending, delivery, bounce, and reply sync
-- LinkedIn draft/manual handoff workflow
+- Email sending, delivery, bounce, and reply sync
+- LinkedIn manual handoff state tracking
 - Sequence and sequence-step models
 - Temporal campaign outreach workflow
 - MCP outreach tools
-- Agent approval requests and audit events
+- Formal ApprovalRequest entity (message approval and activity audit are present in this slice)
 - Consent, suppression, unsubscribe, and domain-limit enforcement
 - CRM dashboards and reporting
 
 ## Next implementation order
 
-1. Add normalized contacts and migrate campaign lead contact data.
-2. Add a campaign preflight checklist with explicit review state.
-3. Add draft-only email and LinkedIn message generation.
-4. Add human approval records and audit trail.
+1. Add ContactVerification history and explicit contact-review audit events.
+2. Add a campaign preflight checklist with explicit per-contact review state.
+3. Add human approval records and audit trail.
 5. Add OAuth email account connection and email drafts.
 6. Add Temporal scheduling for approved drafts only.
 7. Add reply/bounce/opt-out synchronization and stop conditions.

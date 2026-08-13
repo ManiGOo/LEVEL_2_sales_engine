@@ -13,6 +13,7 @@ from app.schemas.campaign import (
     CampaignDetail,
     CampaignActivityCreate,
     CampaignActivityResponse,
+    OutreachMessageResponse,
 )
 from app.services import campaign_service
 
@@ -120,6 +121,40 @@ async def remove_lead(
     if not removed:
         raise HTTPException(status_code=404, detail="Lead not found")
     return {"status": "removed"}
+
+
+@router.post("/{campaign_id}/leads/{lead_id}/drafts", response_model=OutreachMessageResponse)
+async def create_message_draft(
+    campaign_id: str,
+    lead_id: str,
+    channel: str = Query(..., pattern="^(email|linkedin)$"),
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    try:
+        message = await campaign_service.create_draft(db, campaign_id, lead_id, channel, user)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    if not message:
+        raise HTTPException(status_code=404, detail="Campaign or lead not found")
+    return message
+
+
+@router.post("/{campaign_id}/messages/{message_id}/review", response_model=OutreachMessageResponse)
+async def review_message(
+    campaign_id: str,
+    message_id: str,
+    status: str = Query(..., pattern="^(approved|rejected)$"),
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    try:
+        message = await campaign_service.update_message_status(db, campaign_id, message_id, status, user)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    return message
 
 
 @router.post("/{campaign_id}/leads/{lead_id}/activities", response_model=CampaignActivityResponse)

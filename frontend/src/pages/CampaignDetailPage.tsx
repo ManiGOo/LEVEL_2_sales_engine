@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
-import type { CampaignDetail, CampaignLead, CampaignActivity } from '@/types/api'
+import type { CampaignDetail, CampaignLead, CampaignActivity, OutreachMessage } from '@/types/api'
 import { motion } from 'motion/react'
 import {
   ArrowLeft,
@@ -54,6 +54,7 @@ export default function CampaignDetailPage() {
 
   const campaign = data?.campaign
   const activities = data?.activities || []
+  const messages = data?.messages || []
   const leads = campaign?.leads || []
 
   useEffect(() => {
@@ -269,7 +270,7 @@ export default function CampaignDetailPage() {
       ) : (
         <div className="space-y-3">
           {filteredLeads.map((lead) => (
-            <LeadRow key={lead.id} campaignId={campaignId} lead={lead} onChanged={invalidate} />
+            <LeadRow key={lead.id} campaignId={campaignId} lead={lead} messages={messages.filter((m) => m.lead_id === lead.id)} onChanged={invalidate} />
           ))}
         </div>
       )}
@@ -287,7 +288,7 @@ export default function CampaignDetailPage() {
   )
 }
 
-function LeadRow({ campaignId, lead, onChanged }: { campaignId: string; lead: CampaignLead; onChanged: () => void }) {
+function LeadRow({ campaignId, lead, messages, onChanged }: { campaignId: string; lead: CampaignLead; messages: OutreachMessage[]; onChanged: () => void }) {
   const { fetchApi } = useApi()
   const [contactName, setContactName] = useState(lead.contact_name || '')
   const [contactRole, setContactRole] = useState(lead.contact_role || '')
@@ -299,6 +300,7 @@ function LeadRow({ campaignId, lead, onChanged }: { campaignId: string; lead: Ca
   const [logAction, setLogAction] = useState('emailed')
   const [logDetail, setLogDetail] = useState('')
   const [logging, setLogging] = useState(false)
+  const [drafting, setDrafting] = useState('')
 
   async function save() {
     setSaving(true)
@@ -374,6 +376,24 @@ function LeadRow({ campaignId, lead, onChanged }: { campaignId: string; lead: Ca
     } finally {
       setLogging(false)
     }
+  }
+
+  async function draft(channel: string) {
+    setDrafting(channel)
+    try {
+      const res = await fetchApi(`/api/v1/campaigns/${campaignId}/leads/${lead.id}/drafts?channel=${channel}`, { method: 'POST' })
+      if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.detail || 'Draft failed') }
+      showToast({ variant: 'success', title: 'Draft created', description: `${channel} draft is ready for review` })
+      onChanged()
+    } catch (e) {
+      showToast({ variant: 'error', title: 'Could not draft', description: e instanceof Error ? e.message : 'Error' })
+    } finally { setDrafting('') }
+  }
+
+  async function reviewMessage(message: OutreachMessage, status: string) {
+    const res = await fetchApi(`/api/v1/campaigns/${campaignId}/messages/${message.id}/review?status=${status}`, { method: 'POST' })
+    if (!res.ok) { const body = await res.json().catch(() => ({})); showToast({ variant: 'error', title: 'Review failed', description: body.detail || 'Could not update draft' }); return }
+    onChanged()
   }
 
   async function remove() {
@@ -525,6 +545,19 @@ function LeadRow({ campaignId, lead, onChanged }: { campaignId: string; lead: Ca
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
           Save
         </button>
+      </div>
+      <div className="px-4 pb-4 border-t border-white/5 pt-3 space-y-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Draft outreach</span>
+          <button onClick={() => draft('email')} disabled={!!drafting || lead.do_not_contact || !lead.contact_email} className="px-2.5 py-1 rounded bg-indigo-500/80 hover:bg-indigo-400 disabled:opacity-40 text-[11px] text-white">{drafting === 'email' ? 'Drafting…' : 'Draft email'}</button>
+          <button onClick={() => draft('linkedin')} disabled={!!drafting || lead.do_not_contact || !lead.linkedin_url} className="px-2.5 py-1 rounded bg-sky-500/80 hover:bg-sky-400 disabled:opacity-40 text-[11px] text-white">{drafting === 'linkedin' ? 'Drafting…' : 'Draft LinkedIn'}</button>
+          {(!lead.contact_email && !lead.linkedin_url) && <span className="text-[10px] text-amber-400">Add verified contact info first</span>}
+        </div>
+        {messages.map((message) => <div key={message.id} className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-3">
+          <div className="flex items-center justify-between gap-2"><span className="text-[10px] uppercase tracking-wide text-indigo-300 font-semibold">{message.channel} · {message.status}</span>{message.status === 'draft' && <div className="flex gap-2"><button onClick={() => reviewMessage(message, 'approved')} className="text-[10px] text-emerald-300 hover:text-emerald-200">Approve</button><button onClick={() => reviewMessage(message, 'rejected')} className="text-[10px] text-red-300 hover:text-red-200">Reject</button></div>}</div>
+          {message.subject && <p className="text-xs font-semibold text-slate-200 mt-1">{message.subject}</p>}
+          <p className="text-xs text-slate-400 whitespace-pre-wrap mt-1">{message.body}</p>
+        </div>)}
       </div>
     </div>
   )
