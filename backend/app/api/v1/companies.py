@@ -9,9 +9,10 @@ router = APIRouter(prefix="/companies", tags=["companies"])
 async def get_company_ranking(
     page: int = Query(1),
     page_size: int = Query(10),
+    q: str = Query(None),
     user=Depends(get_current_user),
 ):
-    return await sentinel_service.get_companies(page=page, page_size=page_size)
+    return await sentinel_service.get_companies(page=page, page_size=page_size, q=q)
 
 
 @router.get("/")

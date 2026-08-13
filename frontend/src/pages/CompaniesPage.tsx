@@ -5,11 +5,12 @@ import type { CompanyPage } from '@/types/api'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ScoreGauge } from '@/components/ui/ScoreGauge'
-import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet } from 'lucide-react'
+import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { showToast } from '@/components/ui/toast'
 import SegmentedTabs from '@/components/general/SegmentedTabs'
 import GeneralCompaniesView from '@/components/general/GeneralCompaniesView'
+import Pagination from '@/components/ui/Pagination'
 
 const PAGE_SIZE = 30
 
@@ -24,6 +25,8 @@ export default function CompaniesPage() {
   const { fetchApi } = useApi()
   const [tab, setTab] = useState('automated')
   const [page, setPage] = useState(1)
+  const [q, setQ] = useState('')
+  const [search, setSearch] = useState('')
   const [downloading, setDownloading] = useState(false)
 
   async function downloadExcel() {
@@ -55,14 +58,22 @@ export default function CompaniesPage() {
   }
 
   const { data, isFetching } = useQuery({
-    queryKey: ['companies', 'ranking', page],
+    queryKey: ['companies', 'ranking', page, search],
     queryFn: async () => {
-      const res = await fetchApi(`/api/v1/companies/ranking?page=${page}&page_size=${PAGE_SIZE}`)
+      const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) })
+      if (search) params.set('q', search)
+      const res = await fetchApi(`/api/v1/companies/ranking?${params.toString()}`)
       return (await res.json()) as CompanyPage
     },
   })
 
   const pages = Math.max(data?.pages || 1, 1)
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault()
+    setPage(1)
+    setSearch(q.trim())
+  }
 
   function go(delta: number) {
     const next = Math.min(Math.max(page + delta, 1), pages)
@@ -105,7 +116,7 @@ export default function CompaniesPage() {
 
       <SegmentedTabs
         tabs={[
-          { key: 'automated', label: 'Automated' },
+          { key: 'automated', label: 'CDSCO / S-FDA' },
           { key: 'general', label: 'General' },
         ]}
         active={tab}
@@ -116,6 +127,30 @@ export default function CompaniesPage() {
         <GeneralCompaniesView />
       ) : (
       <>
+
+      <form onSubmit={submitSearch}>
+        <div className="relative max-w-xl">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search CDSCO / S-FDA companies by name…"
+            className="w-full pl-9 pr-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+          />
+        </div>
+      </form>
+
+      {!isFetching && data && data.total > 0 && (
+        <Pagination
+          page={data.page}
+          pages={pages}
+          start={start}
+          shown={shown}
+          total={data.total}
+          onPrev={() => go(-1)}
+          onNext={() => go(1)}
+        />
+      )}
 
       {isFetching ? (
         <div className="space-y-3">
@@ -170,34 +205,20 @@ export default function CompaniesPage() {
       {!isFetching && data && data.items.length === 0 && (
         <div className="glass rounded-xl p-12 text-center">
           <Building2 size={48} className="mx-auto text-slate-600 mb-4" />
-          <p className="text-slate-400">No companies found</p>
+          <p className="text-slate-400">No companies found{search ? ' matching your search' : ''}</p>
         </div>
       )}
 
       {data && data.total > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-xs sm:text-sm text-slate-400">
-            {data.total > 0
-              ? `Page ${data.page} / ${data.pages} · showing ${start}–${start + shown - 1} of ${data.total.toLocaleString()}`
-              : '0 results'}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => go(-1)}
-              disabled={page <= 1}
-              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg text-sm font-semibold text-white"
-            >
-              ‹ Prev
-            </button>
-            <button
-              onClick={() => go(1)}
-              disabled={page >= data.pages}
-              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg text-sm font-semibold text-white"
-            >
-              Next ›
-            </button>
-          </div>
-        </div>
+        <Pagination
+          page={data.page}
+          pages={pages}
+          start={start}
+          shown={shown}
+          total={data.total}
+          onPrev={() => go(-1)}
+          onNext={() => go(1)}
+        />
       )}
       </>
       )}

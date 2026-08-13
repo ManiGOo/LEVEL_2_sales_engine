@@ -1,36 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
-import type { GeneralCompany, GeneralCompanyPage, Lead } from '@/types/api'
+import type { GeneralCompany, GeneralCompanyPage } from '@/types/api'
 import { motion } from 'motion/react'
-import { Plus, Building2, Globe, Search, Trash2, Users, Briefcase } from 'lucide-react'
-import { Modal } from '@/components/ui/Modal'
+import { Plus, Building2, Globe, Search, Trash2, Users, Briefcase, ChevronRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import AddCompanyModal from './AddCompanyModal'
-import { LeadResultContent } from '@/components/leads/LeadResultContent'
 import { showToast } from '@/components/ui/toast'
+import Pagination from '@/components/ui/Pagination'
 
 const PAGE_SIZE = 30
-
-function toLead(gc: GeneralCompany): Lead {
-  return {
-    company_key: gc.company_key,
-    company_name: gc.name,
-    website: gc.website || '',
-    linkedin_url: gc.linkedin_url || '',
-    company_status: gc.company_status || 'unknown',
-    decision_makers: gc.decision_makers || [],
-    intent_signals: gc.intent_signals || [],
-    trigger_events: gc.trigger_events || [],
-    activity_summary: gc.activity_summary || '',
-    hiring: gc.hiring || [],
-    hiring_news: gc.hiring_news || [],
-    hiring_headline: gc.hiring_headline || '',
-    status: 'completed',
-    error: '',
-    workflow_id: '',
-    fetched_at: null,
-  }
-}
 
 export default function GeneralCompaniesView() {
   const { fetchApi } = useApi()
@@ -39,7 +18,6 @@ export default function GeneralCompaniesView() {
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
   const [addOpen, setAddOpen] = useState(false)
-  const [detail, setDetail] = useState<GeneralCompany | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
   const { data, isFetching } = useQuery({
@@ -53,6 +31,7 @@ export default function GeneralCompaniesView() {
   })
 
   const pages = Math.max(data?.pages || 1, 1)
+  const start = (page - 1) * PAGE_SIZE + 1
 
   function go(delta: number) {
     const next = Math.min(Math.max(page + delta, 1), pages)
@@ -80,7 +59,6 @@ export default function GeneralCompaniesView() {
       const res = await fetchApi(`/api/v1/general-companies/${gc.company_key}`, { method: 'DELETE' })
       if (!res.ok) throw new Error((await res.json()).detail || 'Delete failed')
       showToast({ variant: 'success', title: 'Deleted', description: `${gc.name} removed` })
-      if (detail?.company_key === gc.company_key) setDetail(null)
       invalidate()
     } catch (e) {
       showToast({ variant: 'error', title: 'Delete failed', description: e instanceof Error ? e.message : 'Error' })
@@ -88,8 +66,6 @@ export default function GeneralCompaniesView() {
       setDeleting(null)
     }
   }
-
-  const resultCount = useMemo(() => `Page ${data?.page || 1} / ${data?.pages || 1}`, [data])
 
   return (
     <div className="space-y-4">
@@ -114,6 +90,18 @@ export default function GeneralCompaniesView() {
         </button>
       </div>
 
+      {!isFetching && data && data.total > 0 && (
+        <Pagination
+          page={data.page}
+          pages={pages}
+          start={start}
+          shown={data.items.length}
+          total={data.total}
+          onPrev={() => go(-1)}
+          onNext={() => go(1)}
+        />
+      )}
+
       {isFetching ? (
         <div className="space-y-3">
           {[...Array(6)].map((_, i) => (
@@ -137,8 +125,8 @@ export default function GeneralCompaniesView() {
               animate={{ opacity: 1, y: 0 }}
             >
               <div className="glass glass-hover rounded-xl p-3 flex items-center gap-3 group transition-all">
-                <button
-                  onClick={() => setDetail(gc)}
+                <Link
+                  to={`/companies/general/${gc.company_key}`}
                   className="flex-1 min-w-0 text-left"
                   title="View details"
                 >
@@ -159,7 +147,7 @@ export default function GeneralCompaniesView() {
                       .filter(Boolean)
                       .join(' · ') || 'No extra details'}
                   </p>
-                </button>
+                </Link>
                 {gc.website && (
                   <a
                     href={gc.website}
@@ -192,6 +180,7 @@ export default function GeneralCompaniesView() {
                 >
                   <Trash2 size={14} />
                 </button>
+                <ChevronRight size={16} className="text-slate-600 group-hover:text-indigo-400 transition-colors shrink-0" />
               </div>
             </motion.div>
           ))}
@@ -199,27 +188,15 @@ export default function GeneralCompaniesView() {
       )}
 
       {data && data.total > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-xs sm:text-sm text-slate-400">
-            {resultCount} · {data.total.toLocaleString()} total
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => go(-1)}
-              disabled={page <= 1}
-              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg text-sm font-semibold text-white"
-            >
-              ‹ Prev
-            </button>
-            <button
-              onClick={() => go(1)}
-              disabled={page >= data.pages}
-              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg text-sm font-semibold text-white"
-            >
-              Next ›
-            </button>
-          </div>
-        </div>
+        <Pagination
+          page={data.page}
+          pages={pages}
+          start={start}
+          shown={data.items.length}
+          total={data.total}
+          onPrev={() => go(-1)}
+          onNext={() => go(1)}
+        />
       )}
 
       <AddCompanyModal
@@ -231,55 +208,6 @@ export default function GeneralCompaniesView() {
           invalidate()
         }}
       />
-
-      <Modal
-        open={!!detail}
-        title={detail?.name || ''}
-        onClose={() => setDetail(null)}
-        className="lg:max-w-3xl"
-      >
-        {detail && (
-          <div className="p-2 sm:p-4 space-y-3">
-            <div className="flex flex-wrap gap-2 px-3">
-              {detail.industry && (
-                <span className="px-2.5 py-1 rounded-full text-[11px] bg-slate-500/15 text-slate-300">
-                  {detail.industry}
-                </span>
-              )}
-              {detail.location && (
-                <span className="px-2.5 py-1 rounded-full text-[11px] bg-slate-500/15 text-slate-300">
-                  {detail.location}
-                </span>
-              )}
-              {detail.employees && (
-                <span className="px-2.5 py-1 rounded-full text-[11px] bg-slate-500/15 text-slate-300">
-                  {detail.employees} employees
-                </span>
-              )}
-              {detail.revenue && (
-                <span className="px-2.5 py-1 rounded-full text-[11px] bg-slate-500/15 text-slate-300">
-                  {detail.revenue}
-                </span>
-              )}
-              <span className="px-2.5 py-1 rounded-full text-[11px] bg-indigo-500/10 text-indigo-300">
-                Added by {detail.created_by_name || 'a user'}
-              </span>
-            </div>
-            {detail.description && (
-              <p className="text-sm text-slate-300 px-3 leading-relaxed">{detail.description}</p>
-            )}
-            <LeadResultContent lead={toLead(detail)} />
-            {detail.notes && (
-              <div className="px-3 pb-3">
-                <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">
-                  Notes
-                </p>
-                <p className="text-sm text-slate-400 whitespace-pre-wrap">{detail.notes}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
     </div>
   )
 }

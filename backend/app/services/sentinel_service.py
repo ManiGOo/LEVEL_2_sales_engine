@@ -51,11 +51,14 @@ async def get_enrichment_status(workflow_id: str) -> dict:
         return resp.json()
 
 
-async def research_leads(company_keys: list) -> dict:
+async def research_leads(company_keys: list, companies: list[dict] | None = None) -> dict:
+    payload = {"company_keys": company_keys}
+    if companies:
+        payload["companies"] = companies
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(
             f"{settings.sentinel_api_url}/api/v1/leads/research",
-            json={"company_keys": company_keys},
+            json=payload,
         )
         resp.raise_for_status()
         return resp.json()

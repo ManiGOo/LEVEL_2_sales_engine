@@ -21,7 +21,8 @@ import { Modal } from '@/components/ui/Modal'
 import { LeadResultContent, LeadPlaceholderCard } from '@/components/leads/LeadResultContent'
 import { showToast, dismissToast } from '@/components/ui/toast'
 import SegmentedTabs from '@/components/general/SegmentedTabs'
-import GeneralCompaniesView from '@/components/general/GeneralCompaniesView'
+import CreateLeadFromCompanyView from '@/components/general/CreateLeadFromCompanyView'
+import Pagination from '@/components/ui/Pagination'
 
 const PAGE_SIZE = 30
 const MAX_SELECT = 10
@@ -412,7 +413,7 @@ export default function LeadsPage() {
 
       <SegmentedTabs
         tabs={[
-          { key: 'discover', label: 'Discover' },
+          { key: 'discover', label: 'CDSCO / S-FDA' },
           { key: 'general', label: 'General leads' },
         ]}
         active={tab}
@@ -420,7 +421,7 @@ export default function LeadsPage() {
       />
 
       {tab === 'general' ? (
-        <GeneralCompaniesView />
+        <CreateLeadFromCompanyView />
       ) : (
       <>
 
@@ -484,6 +485,18 @@ export default function LeadsPage() {
         </div>
       )}
 
+      {data && data.total > 0 && (
+        <Pagination
+          page={data.page}
+          pages={pages}
+          start={start}
+          shown={shown}
+          total={data.total}
+          onPrev={() => go(-1)}
+          onNext={() => go(1)}
+        />
+      )}
+
       <div className="space-y-2 pb-20 lg:pb-0">
         {!data && (
           <div className="space-y-3">
@@ -520,27 +533,15 @@ export default function LeadsPage() {
       )}
 
       {data && data.total > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-xs sm:text-sm text-slate-400">
-            {`Page ${data.page} / ${data.pages} · showing ${start}–${start + shown - 1} of ${data.total.toLocaleString()}`}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => go(-1)}
-              disabled={page <= 1}
-              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg text-sm font-semibold text-white"
-            >
-              ‹ Prev
-            </button>
-            <button
-              onClick={() => go(1)}
-              disabled={page >= data.pages}
-              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg text-sm font-semibold text-white"
-            >
-              Next ›
-            </button>
-          </div>
-        </div>
+        <Pagination
+          page={data.page}
+          pages={pages}
+          start={start}
+          shown={shown}
+          total={data.total}
+          onPrev={() => go(-1)}
+          onNext={() => go(1)}
+        />
       )}
 
       {researchedResults.length > 0 && (

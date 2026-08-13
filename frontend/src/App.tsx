@@ -9,6 +9,7 @@ import DashboardPage from '@/pages/DashboardPage'
 import ChatPage from '@/pages/ChatPage'
 import CompaniesPage from '@/pages/CompaniesPage'
 import CompanyDetailPage from '@/pages/CompanyDetailPage'
+import GeneralCompanyDetailPage from '@/pages/GeneralCompanyDetailPage'
 import LeadsPage from '@/pages/LeadsPage'
 import CampaignsPage from '@/pages/CampaignsPage'
 import CampaignDetailPage from '@/pages/CampaignDetailPage'
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/companies" element={<CompaniesPage />} />
               <Route path="/companies/:slug" element={<CompanyDetailPage />} />
+              <Route path="/companies/general/:companyKey" element={<GeneralCompanyDetailPage />} />
               <Route path="/leads" element={<LeadsPage />} />
               <Route path="/campaigns" element={<CampaignsPage />} />
               <Route path="/campaigns/:campaignId" element={<CampaignDetailPage />} />

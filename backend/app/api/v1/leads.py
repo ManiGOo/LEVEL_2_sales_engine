@@ -7,8 +7,14 @@ from app.dependencies import get_current_user
 router = APIRouter(prefix="/leads", tags=["leads"])
 
 
+class LeadCompanyInput(BaseModel):
+    company_key: str
+    company_name: str = ""
+
+
 class LeadResearchRequest(BaseModel):
     company_keys: List[str] = []
+    companies: List[LeadCompanyInput] = []
 
 
 @router.post("/research")
@@ -16,7 +22,10 @@ async def research_leads(
     req: LeadResearchRequest = Body(...),
     user=Depends(get_current_user),
 ):
-    return await sentinel_service.research_leads(req.company_keys)
+    return await sentinel_service.research_leads(
+        req.company_keys,
+        [{"company_key": c.company_key, "company_name": c.company_name} for c in req.companies],
+    )
 
 
 @router.get("/status")
