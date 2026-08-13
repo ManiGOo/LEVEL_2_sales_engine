@@ -121,6 +121,13 @@ class CampaignActivity(Base):
     actor_name: Mapped[str | None] = mapped_column(String(255))
     action: Mapped[str] = mapped_column(String(50))  # created | lead_added | lead_removed | status_change | note | contact | updated
     detail: Mapped[str | None] = mapped_column(Text)
+    # Immutable event-store fields. A snapshot is written whenever a lifecycle
+    # state changes so earlier stages can be inspected without relying on the
+    # mutable campaign/lead rows.
+    entity_type: Mapped[str | None] = mapped_column(String(20))  # campaign | lead | team_activity
+    from_state: Mapped[str | None] = mapped_column(String(30))
+    to_state: Mapped[str | None] = mapped_column(String(30))
+    snapshot: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     lead: Mapped["CampaignLead | None"] = relationship(back_populates="activities")

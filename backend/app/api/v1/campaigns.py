@@ -104,7 +104,10 @@ async def update_lead(
     db: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    lead = await campaign_service.update_lead(db, campaign_id, lead_id, data, user)
+    try:
+        lead = await campaign_service.update_lead(db, campaign_id, lead_id, data, user)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     return lead

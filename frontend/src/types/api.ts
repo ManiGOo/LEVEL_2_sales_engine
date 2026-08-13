@@ -227,6 +227,10 @@ export interface CampaignActivity {
   actor_name: string
   action: string
   detail: string
+  entity_type?: 'campaign' | 'lead' | 'team_activity' | null
+  from_state?: string | null
+  to_state?: string | null
+  snapshot?: Record<string, unknown> | null
   created_at: string
 }
 

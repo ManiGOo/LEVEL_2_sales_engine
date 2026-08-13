@@ -77,6 +77,10 @@ class CampaignActivityResponse(BaseModel):
     actor_name: str | None = None
     action: str
     detail: str | None = None
+    entity_type: str | None = None
+    from_state: str | None = None
+    to_state: str | None = None
+    snapshot: dict | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

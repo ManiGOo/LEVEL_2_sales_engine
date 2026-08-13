@@ -67,3 +67,19 @@ async def ensure_campaign_schema() -> None:
                 if name not in existing:
                     sync_conn.execute(text(f"ALTER TABLE campaigns ADD COLUMN {name} {definition}"))
         await conn.run_sync(migrate)
+
+
+async def ensure_campaign_activity_schema() -> None:
+    columns = {
+        "entity_type": "VARCHAR(20)",
+        "from_state": "VARCHAR(30)",
+        "to_state": "VARCHAR(30)",
+        "snapshot": "JSON",
+    }
+    async with engine.begin() as conn:
+        def migrate(sync_conn):
+            existing = {c["name"] for c in inspect(sync_conn).get_columns("campaign_activities")}
+            for name, definition in columns.items():
+                if name not in existing:
+                    sync_conn.execute(text(f"ALTER TABLE campaign_activities ADD COLUMN {name} {definition}"))
+        await conn.run_sync(migrate)

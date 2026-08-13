@@ -27,6 +27,34 @@ def _actor(user: User | None) -> str | None:
     return (user.name if user else None) or None
 
 
+CAMPAIGN_TRANSITIONS = {"draft": {"active"}, "active": {"completed"}, "completed": {"archived"}, "archived": set()}
+LEAD_TRANSITIONS = {
+    "queued": {"contacted"}, "contacted": {"replied", "not_interested", "closed"},
+    "replied": {"closed"}, "not_interested": {"closed"}, "closed": set(),
+}
+
+
+def _campaign_snapshot(campaign: Campaign) -> dict:
+    return {
+        "name": campaign.name, "description": campaign.description, "status": campaign.status,
+        "objective": campaign.objective, "target_audience": campaign.target_audience,
+        "offer_context": campaign.offer_context, "sender_identity": campaign.sender_identity,
+        "approved_channels": campaign.approved_channels or [], "daily_send_limit": campaign.daily_send_limit,
+        "stop_conditions": campaign.stop_conditions, "preflight_complete": campaign.preflight_complete,
+        "lead_count": len(campaign.leads or []),
+    }
+
+
+def _lead_snapshot(lead: CampaignLead) -> dict:
+    return {
+        "company_name": lead.company_name, "status": lead.status, "contact_name": lead.contact_name,
+        "contact_role": lead.contact_role, "email": lead.contact_email, "phone": lead.contact_phone,
+        "next_follow_up_at": lead.next_follow_up_at.isoformat() if lead.next_follow_up_at else None,
+        "last_contact_at": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
+        "notes": lead.notes,
+    }
+
+
 async def _with_leads(db: AsyncSession, campaign_id: str) -> Campaign | None:
     result = await db.execute(
         select(Campaign)
@@ -52,6 +80,10 @@ async def _log(
     actor_name: str | None,
     detail: str | None = None,
     lead_id: str | None = None,
+    entity_type: str | None = None,
+    from_state: str | None = None,
+    to_state: str | None = None,
+    snapshot: dict | None = None,
 ) -> None:
     db.add(
         CampaignActivity(
@@ -60,6 +92,10 @@ async def _log(
             action=action,
             actor_name=actor_name,
             detail=detail,
+            entity_type=entity_type,
+            from_state=from_state,
+            to_state=to_state,
+            snapshot=snapshot,
         )
     )
 
@@ -83,10 +119,12 @@ async def create_campaign(db: AsyncSession, data: CampaignCreate, user: User) ->
     await db.flush()
 
     for seed in data.leads:
-        db.add(await _to_lead(db, campaign.id, seed, user))
-        await _log(db, campaign.id, "lead_added", _actor(user), detail=f"Added {seed.company_name or seed.company_key}", lead_id=None)
+        lead = await _to_lead(db, campaign.id, seed, user)
+        db.add(lead)
+        await db.flush()
+        await _log(db, campaign.id, "lead_added", _actor(user), detail=f"Added {seed.company_name or seed.company_key}", lead_id=lead.id, entity_type="lead", to_state="queued", snapshot=_lead_snapshot(lead))
 
-    await _log(db, campaign.id, "created", _actor(user), detail=f"Campaign '{campaign.name}' created")
+    await _log(db, campaign.id, "created", _actor(user), detail=f"Campaign '{campaign.name}' created", entity_type="campaign", to_state="draft", snapshot=_campaign_snapshot(campaign))
     await db.commit()
     await db.refresh(campaign)
     return await _with_leads(db, campaign.id)
@@ -286,13 +324,17 @@ async def update_campaign(
     if any(label in changes for label in ("Updated objective", "Updated target audience", "Updated offer context", "Updated sender identity", "Updated approved channels", "Updated stop conditions")):
         campaign.preflight_complete = False
     if data.status is not None and data.status != campaign.status:
+        if data.status not in CAMPAIGN_TRANSITIONS.get(campaign.status, set()):
+            raise ValueError(f"Campaign cannot move backward from {campaign.status} to {data.status}")
         if data.status == "active":
             missing = _preflight_missing(campaign)
             if missing:
                 raise ValueError("Campaign cannot activate: " + ", ".join(missing))
             campaign.preflight_complete = True
+        previous_status = campaign.status
         campaign.status = data.status
         changes.append(f"Status → {data.status}")
+        await _log(db, campaign_id, "status_change", _actor(user), detail=f"Status {previous_status} → {data.status}", entity_type="campaign", from_state=previous_status, to_state=data.status, snapshot=_campaign_snapshot(campaign))
 
     campaign.updated_at = _now()
     if changes:
@@ -335,7 +377,7 @@ async def add_lead(db: AsyncSession, campaign_id: str, seed: CampaignLeadSeed, u
     lead = await _to_lead(db, campaign_id, seed, user)
     db.add(lead)
     await db.flush()
-    await _log(db, campaign_id, "lead_added", _actor(user), detail=f"Added {lead.company_name}", lead_id=lead.id)
+    await _log(db, campaign_id, "lead_added", _actor(user), detail=f"Added {lead.company_name}", lead_id=lead.id, entity_type="lead", to_state="queued", snapshot=_lead_snapshot(lead))
     await db.commit()
     await db.refresh(lead)
     return lead
@@ -381,8 +423,20 @@ async def update_lead(
     if data.do_not_contact is not None:
         lead.do_not_contact = data.do_not_contact
     if data.status is not None and data.status != lead.status:
-        log_parts.append(f"Status {lead.status} → {data.status}")
+        if data.status not in LEAD_TRANSITIONS.get(lead.status, set()):
+            raise ValueError(f"Lead cannot move backward from {lead.status} to {data.status}")
+        previous_status = lead.status
+        log_parts.append(f"Status {previous_status} → {data.status}")
         lead.status = data.status
+        if data.status == "contacted":
+            lead.last_contact_at = _now()
+            log_parts.append("Logged contact")
+        await _log(db, campaign_id, "status_change", _actor(user), detail=f"Status {previous_status} → {data.status}", lead_id=lead.id, entity_type="lead", from_state=previous_status, to_state=data.status, snapshot=_lead_snapshot(lead))
+        if data.status == "contacted" and campaign.status == "draft":
+            campaign.status = "active"
+            campaign.preflight_complete = True
+            campaign.updated_at = _now()
+            await _log(db, campaign_id, "status_change", _actor(user), detail="Automatically activated when a lead was contacted", entity_type="campaign", from_state="draft", to_state="active", snapshot=_campaign_snapshot(campaign))
     if data.last_contact_at is not None:
         lead.last_contact_at = data.last_contact_at
         log_parts.append("Logged contact")
@@ -397,7 +451,8 @@ async def update_lead(
     if log_parts:
         actor = _actor(user)
         for part in log_parts:
-            await _log(db, campaign_id, "status_change", actor, detail=part, lead_id=lead.id)
+            if not part.startswith("Status "):
+                await _log(db, campaign_id, "updated", actor, detail=part, lead_id=lead.id, entity_type="team_activity", snapshot=_lead_snapshot(lead))
     await db.commit()
     await db.refresh(lead)
     return lead
@@ -445,6 +500,8 @@ async def log_activity(
         action=action,
         actor_name=_actor(user),
         detail=(detail or "").strip() or None,
+        entity_type="team_activity",
+        snapshot=_lead_snapshot(lead) if lead_id else _campaign_snapshot(campaign),
     )
     db.add(activity)
     await db.commit()

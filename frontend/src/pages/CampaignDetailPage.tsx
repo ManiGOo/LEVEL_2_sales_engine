@@ -21,7 +21,8 @@ import {
 import { cn } from '@/lib/utils'
 import { showToast } from '@/components/ui/toast'
 import LeadsPickerModal, { type LeadSeed } from '@/components/campaign/LeadsPickerModal'
-import { CampaignStatusBadge, LeadStatusBadge, ActionBadge, CAMPAIGN_STATUSES, LEAD_STATUSES } from '@/components/campaign/badges'
+import { CampaignStatusBadge, LeadStatusBadge, ActionBadge, LEAD_STATUSES } from '@/components/campaign/badges'
+import { ConfirmationDialog, StateHistory } from '@/components/campaign/StateHistory'
 
 const inputClass =
   'w-full px-2.5 py-1.5 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 transition-colors'
@@ -33,6 +34,9 @@ const ACTION_OPTIONS = [
   { value: 'note', label: 'Note' },
 ]
 
+const NEXT_CAMPAIGN_STATES: Record<string, string[]> = { draft: ['active'], active: ['completed'], completed: ['archived'], archived: [] }
+const NEXT_LEAD_STATES: Record<string, string[]> = { queued: ['contacted'], contacted: ['replied', 'not_interested', 'closed'], replied: ['closed'], not_interested: ['closed'], closed: [] }
+
 export default function CampaignDetailPage() {
   const { campaignId = '' } = useParams()
   const { fetchApi } = useApi()
@@ -41,6 +45,7 @@ export default function CampaignDetailPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editingContext, setEditingContext] = useState(false)
+  const [pendingCampaignStatus, setPendingCampaignStatus] = useState<string | null>(null)
   const [context, setContext] = useState({ objective: '', target_audience: '', offer_context: '', sender_identity: '', stop_conditions: '', approved_channels: ['email'] as string[] })
 
   const { data, isFetching } = useQuery({
@@ -181,10 +186,10 @@ export default function CampaignDetailPage() {
           <div className="flex items-center gap-2 shrink-0">
             <select
               value={campaign.status}
-              onChange={(e) => updateCampaignStatus(e.target.value)}
+              onChange={(e) => setPendingCampaignStatus(e.target.value)}
               className="px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
             >
-              {CAMPAIGN_STATUSES.map((s) => (
+              {[campaign.status, ...(NEXT_CAMPAIGN_STATES[campaign.status] || [])].map((s) => (
                 <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
               ))}
             </select>
@@ -193,6 +198,8 @@ export default function CampaignDetailPage() {
             </button>
           </div>
         </div>
+
+        <StateHistory title="Campaign stage history" activities={activities} entityType="campaign" />
 
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           {LEAD_STATUSES.map((s) => (
@@ -270,12 +277,20 @@ export default function CampaignDetailPage() {
       ) : (
         <div className="space-y-3">
           {filteredLeads.map((lead) => (
-            <LeadRow key={lead.id} campaignId={campaignId} lead={lead} messages={messages.filter((m) => m.lead_id === lead.id)} onChanged={invalidate} />
+            <LeadRow key={lead.id} campaignId={campaignId} lead={lead} activities={activities} messages={messages.filter((m) => m.lead_id === lead.id)} onChanged={invalidate} />
           ))}
         </div>
       )}
 
       <ActivityLog activities={activities} leads={leads} />
+
+      <ConfirmationDialog
+        open={!!pendingCampaignStatus}
+        title="Confirm campaign stage"
+        description={`Move this campaign from ${campaign.status} to ${pendingCampaignStatus}? This saves an immutable stage record and completed stages cannot be reopened.`}
+        onReject={() => setPendingCampaignStatus(null)}
+        onContinue={() => { if (pendingCampaignStatus) updateCampaignStatus(pendingCampaignStatus); setPendingCampaignStatus(null) }}
+      />
 
       <LeadsPickerModal
         open={pickerOpen}
@@ -288,7 +303,7 @@ export default function CampaignDetailPage() {
   )
 }
 
-function LeadRow({ campaignId, lead, messages, onChanged }: { campaignId: string; lead: CampaignLead; messages: OutreachMessage[]; onChanged: () => void }) {
+function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campaignId: string; lead: CampaignLead; activities: CampaignActivity[]; messages: OutreachMessage[]; onChanged: () => void }) {
   const { fetchApi } = useApi()
   const [contactName, setContactName] = useState(lead.contact_name || '')
   const [contactRole, setContactRole] = useState(lead.contact_role || '')
@@ -301,6 +316,16 @@ function LeadRow({ campaignId, lead, messages, onChanged }: { campaignId: string
   const [logDetail, setLogDetail] = useState('')
   const [logging, setLogging] = useState(false)
   const [drafting, setDrafting] = useState('')
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null)
+
+  useEffect(() => {
+    setContactName(lead.contact_name || '')
+    setContactRole(lead.contact_role || '')
+    setContactEmail(lead.contact_email || '')
+    setContactPhone(lead.contact_phone || '')
+    setNotes(lead.notes || '')
+    setNextFollowUp(lead.next_follow_up_at ? lead.next_follow_up_at.slice(0, 10) : '')
+  }, [lead.updated_at])
 
   async function save() {
     setSaving(true)
@@ -340,6 +365,10 @@ function LeadRow({ campaignId, lead, messages, onChanged }: { campaignId: string
   }
 
   async function logContact() {
+    if (lead.status === 'queued') {
+      setPendingStatus('contacted')
+      return
+    }
     setLogging(true)
     try {
       const res = await fetchApi(`/api/v1/campaigns/${campaignId}/leads/${lead.id}/activities`, {
@@ -454,10 +483,10 @@ function LeadRow({ campaignId, lead, messages, onChanged }: { campaignId: string
           </button>
           <select
             value={lead.status}
-            onChange={(e) => changeStatus(e.target.value)}
+            onChange={(e) => setPendingStatus(e.target.value)}
             className="px-2 py-1.5 bg-slate-800/70 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
           >
-            {LEAD_STATUSES.map((s) => (
+            {[lead.status, ...(NEXT_LEAD_STATES[lead.status] || [])].map((s) => (
               <option key={s} value={s}>{s.replace('_', ' ')}</option>
             ))}
           </select>
@@ -512,6 +541,10 @@ function LeadRow({ campaignId, lead, messages, onChanged }: { campaignId: string
         </div>
       </div>
 
+      <div className="px-4 pb-3">
+        <StateHistory title="Lead stage history" activities={activities} entityType="lead" leadId={lead.id} />
+      </div>
+
       <div className="px-4 pb-4 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
         <div className="flex items-center gap-1.5 flex-1">
           <select
@@ -559,6 +592,13 @@ function LeadRow({ campaignId, lead, messages, onChanged }: { campaignId: string
           <p className="text-xs text-slate-400 whitespace-pre-wrap mt-1">{message.body}</p>
         </div>)}
       </div>
+      <ConfirmationDialog
+        open={!!pendingStatus}
+        title="Confirm lead stage"
+        description={pendingStatus === 'contacted' ? `Move ${lead.company_name} to contacted? The campaign will also automatically move from draft to active, and both stage records will be saved.` : `Move ${lead.company_name} from ${lead.status.replace('_', ' ')} to ${pendingStatus?.replace('_', ' ')}? This stage will be saved and cannot be moved backward.`}
+        onReject={() => setPendingStatus(null)}
+        onContinue={() => { if (pendingStatus) changeStatus(pendingStatus); setPendingStatus(null) }}
+      />
     </div>
   )
 }
@@ -594,6 +634,9 @@ function ActivityLog({ activities, leads }: { activities: CampaignActivity[]; le
             <span className="text-[10px] text-slate-500 shrink-0">{a.created_at?.slice(0, 16).replace('T', ' ')}</span>
           </div>
         ))}
+      </div>
+      <div className="mt-4">
+        <StateHistory title="Team activity history" activities={activities} entityType="team_activity" />
       </div>
     </div>
   )
