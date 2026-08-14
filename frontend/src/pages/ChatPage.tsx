@@ -51,7 +51,7 @@ export default function ChatPage() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 w-full mx-auto max-w-full sm:max-w-3xl xl:max-w-5xl">
         {/* Top app bar: logo (molecular.png) + streaming loader + actions */}
         <div className="flex items-center justify-between mb-2 lg:mb-3">
           <div className="flex items-center gap-2">

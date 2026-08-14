@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, Square } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { cn } from '@/lib/utils'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 interface ChatInputProps {
   onSend: (msg: string) => void
@@ -12,6 +13,7 @@ interface ChatInputProps {
 export default function ChatInput({ onSend, onStop, isStreaming }: ChatInputProps) {
   const [input, setInput] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
 
   useEffect(() => {
     const ta = textareaRef.current
@@ -57,7 +59,7 @@ export default function ChatInput({ onSend, onStop, isStreaming }: ChatInputProp
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about regulatory signals, companies, compliance..."
+          placeholder={isDesktop ? 'Ask about regulatory signals, companies, compliance...' : ''}
           rows={1}
           maxLength={4000}
           className={cn(
@@ -67,8 +69,8 @@ export default function ChatInput({ onSend, onStop, isStreaming }: ChatInputProp
             'scrollbar-thin'
           )}
         />
-        {/* Shift+Enter hint (subtle) */}
-        <div className="absolute right-2 bottom-1.5 pointer-events-none">
+        {/* Shift+Enter hint (subtle, desktop only) */}
+        <div className="absolute right-2 bottom-1.5 pointer-events-none hidden lg:block">
           <kbd className="px-1.5 py-0.5 text-[10px] text-slate-500 bg-slate-800/60 rounded border border-white/5">
             Shift + Enter
           </kbd>

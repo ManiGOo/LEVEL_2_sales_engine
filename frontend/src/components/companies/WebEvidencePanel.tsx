@@ -4,6 +4,7 @@ import type { WebEvidence } from '@/types/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TextContentSkeleton } from '@/components/ui/ResourceLoader'
 import { Loader2, Globe, RefreshCw, ExternalLink, FileWarning } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { showToast, dismissToast } from '@/components/ui/toast'
@@ -154,9 +155,7 @@ export default function WebEvidencePanel({ eventId }: WebEvidencePanelProps) {
 
         {loading && (
           <div className="space-y-2">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="h-24 rounded-xl bg-slate-800/60 animate-pulse" />
-            ))}
+            {[...Array(2)].map((_, i) => <TextContentSkeleton key={i} lines={3} />)}
           </div>
         )}
 

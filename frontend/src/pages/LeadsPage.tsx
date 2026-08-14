@@ -251,6 +251,8 @@ export default function LeadsPage() {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('discover')
   const [page, setPage] = useState(1)
+  const [q, setQ] = useState('')
+  const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [triggered, setTriggered] = useState(false)
   const [polling, setPolling] = useState(false)
@@ -262,9 +264,11 @@ export default function LeadsPage() {
   const completedToastRef = useRef(false)
 
   const { data } = useQuery({
-    queryKey: ['companies', 'ranking', page],
+    queryKey: ['companies', 'ranking', page, search],
     queryFn: async () => {
-      const res = await fetchApi(`/api/v1/companies/ranking?page=${page}&page_size=${PAGE_SIZE}`)
+      const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) })
+      if (search) params.set('q', search)
+      const res = await fetchApi(`/api/v1/companies/ranking?${params.toString()}`)
       return (await res.json()) as CompanyPage
     },
   })
@@ -385,6 +389,12 @@ export default function LeadsPage() {
 
   const pages = Math.max(data?.pages || 1, 1)
 
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault()
+    setPage(1)
+    setSearch(q.trim())
+  }
+
   function go(delta: number) {
     const next = Math.min(Math.max(page + delta, 1), pages)
     if (next !== page) {
@@ -424,6 +434,18 @@ export default function LeadsPage() {
         <CreateLeadFromCompanyView />
       ) : (
       <>
+
+      <form onSubmit={submitSearch}>
+        <div className="relative max-w-xl">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search CDSCO / S-FDA companies by name…"
+            className="w-full pl-9 pr-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+          />
+        </div>
+      </form>
 
       {hasSelection && (
         <>

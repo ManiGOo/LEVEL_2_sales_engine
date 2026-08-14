@@ -4,6 +4,7 @@ import { useApi } from '@/hooks/useApi'
 import type { GeneralCompany } from '@/types/api'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { TextContentSkeleton } from '@/components/ui/ResourceLoader'
 import { LeadResultContent } from '@/components/leads/LeadResultContent'
 import { toLead } from '@/lib/generalCompany'
 import { motion } from 'motion/react'
@@ -43,10 +44,10 @@ export default function GeneralCompanyDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="h-6 w-40 bg-slate-800 rounded-lg animate-pulse" />
-        <div className="h-44 glass rounded-2xl animate-pulse" />
-        <div className="h-64 glass rounded-2xl animate-pulse" />
+      <div className="space-y-4 max-w-3xl">
+        <TextContentSkeleton lines={2} className="h-28" />
+        <TextContentSkeleton lines={4} className="h-44" />
+        <TextContentSkeleton lines={5} className="h-64" />
       </div>
     )
   }

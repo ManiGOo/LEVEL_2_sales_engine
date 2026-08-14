@@ -21,7 +21,7 @@ export default function ChatWindow({ messages, isStreaming, onSend, onStop }: Ch
   }, [messages])
 
   return (
-    <div className="flex-1 overflow-hidden glass rounded-2xl flex flex-col max-w-3xl mx-auto w-full h-full">
+    <div className="flex-1 overflow-hidden glass rounded-2xl flex flex-col w-full h-full">
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-4 scrollbar-thin pb-[calc(3.25rem+env(safe-area-inset-bottom,_0px))]"
@@ -59,7 +59,9 @@ export default function ChatWindow({ messages, isStreaming, onSend, onStop }: Ch
           ))}
         </AnimatePresence>
 
-        {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && <TypingIndicator />}
+        {isStreaming && messages[messages.length - 1]?.role === 'assistant' && !messages[messages.length - 1]?.content && (
+          <TypingIndicator />
+        )}
       </div>
 
       <div

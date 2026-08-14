@@ -16,16 +16,15 @@ import {
   Globe,
   Mail,
   Calendar,
-  History,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { showToast } from '@/components/ui/toast'
 import LeadsPickerModal, { type LeadSeed } from '@/components/campaign/LeadsPickerModal'
-import { CampaignStatusBadge, LeadStatusBadge, ActionBadge, LEAD_STATUSES } from '@/components/campaign/badges'
+import { CampaignStatusBadge, LeadStatusBadge, LEAD_STATUSES } from '@/components/campaign/badges'
 import { ConfirmationDialog, StateHistory } from '@/components/campaign/StateHistory'
 
 const inputClass =
-  'w-full px-2.5 py-1.5 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 transition-colors'
+  'w-full px-2.5 py-1.5 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:focus:border-white/10'
 
 const ACTION_OPTIONS = [
   { value: 'emailed', label: 'Emailed' },
@@ -46,6 +45,7 @@ export default function CampaignDetailPage() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editingContext, setEditingContext] = useState(false)
   const [pendingCampaignStatus, setPendingCampaignStatus] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState(false)
   const [context, setContext] = useState({ objective: '', target_audience: '', offer_context: '', sender_identity: '', stop_conditions: '', approved_channels: ['email'] as string[] })
 
   const { data, isFetching } = useQuery({
@@ -58,6 +58,7 @@ export default function CampaignDetailPage() {
   })
 
   const campaign = data?.campaign
+  const readOnly = campaign?.status === 'completed' || campaign?.status === 'archived'
   const activities = data?.activities || []
   const messages = data?.messages || []
   const leads = campaign?.leads || []
@@ -119,7 +120,6 @@ export default function CampaignDetailPage() {
 
   async function deleteCampaign() {
     if (!campaign) return
-    if (!window.confirm(`Delete campaign "${campaign.name}"? This removes all its leads.`)) return
     try {
       const res = await fetchApi(`/api/v1/campaigns/${campaignId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Delete failed')
@@ -171,6 +171,12 @@ export default function CampaignDetailPage() {
         <ArrowLeft size={15} /> Campaigns
       </Link>
 
+      {readOnly && (
+        <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 px-4 py-3 text-sm text-slate-300">
+          This campaign is {campaign.status}. All fields are read-only.
+        </div>
+      )}
+
       <div className="glass rounded-xl p-5 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -187,13 +193,14 @@ export default function CampaignDetailPage() {
             <select
               value={campaign.status}
               onChange={(e) => setPendingCampaignStatus(e.target.value)}
-              className="px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              disabled={readOnly}
+              className="px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {[campaign.status, ...(NEXT_CAMPAIGN_STATES[campaign.status] || [])].map((s) => (
                 <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
               ))}
             </select>
-            <button onClick={deleteCampaign} className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete campaign">
+            <button onClick={() => setPendingDelete(true)} disabled={readOnly} className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-500 disabled:hover:bg-transparent" title={readOnly ? 'Campaign is read-only' : 'Delete campaign'}>
               <Trash2 size={16} />
             </button>
           </div>
@@ -223,8 +230,8 @@ export default function CampaignDetailPage() {
           </div>
           <p className="text-slate-400 mt-1">{campaign.objective || 'Add an objective'} · {campaign.target_audience || 'Add a target audience'} · {campaign.sender_identity || 'Choose a sender'}</p>
           <p className="text-slate-500 mt-1">Channels: {(campaign.approved_channels || []).join(', ') || 'none'} · Stop conditions: {campaign.stop_conditions || 'not configured'}</p>
-          <button onClick={() => setEditingContext((v) => !v)} className="mt-2 text-indigo-300 hover:text-indigo-200 font-semibold">{editingContext ? 'Hide editor' : 'Edit preflight'}</button>
-          {editingContext && <div className="mt-3 grid sm:grid-cols-2 gap-2">
+          <button onClick={() => setEditingContext((v) => !v)} disabled={readOnly} className="mt-2 text-indigo-300 hover:text-indigo-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed">{editingContext ? 'Hide editor' : 'Edit preflight'}</button>
+          {editingContext && !readOnly && <div className="mt-3 grid sm:grid-cols-2 gap-2">
             {(['objective', 'target_audience', 'sender_identity', 'stop_conditions'] as const).map((field) => <input key={field} value={context[field]} onChange={(e) => setContext((c) => ({ ...c, [field]: e.target.value }))} placeholder={field.replace('_', ' ')} className={cn(inputClass, 'text-xs')} />)}
             <textarea value={context.offer_context} onChange={(e) => setContext((c) => ({ ...c, offer_context: e.target.value }))} placeholder="offer context" rows={2} className={cn(inputClass, 'text-xs resize-y')} />
             <div className="flex items-center gap-3 text-slate-300"><span>Channels</span>{['email', 'linkedin'].map((channel) => <label key={channel} className="inline-flex items-center gap-1"><input type="checkbox" checked={context.approved_channels.includes(channel)} onChange={(e) => setContext((c) => ({ ...c, approved_channels: e.target.checked ? [...c.approved_channels, channel] : c.approved_channels.filter((x) => x !== channel) }))} className="accent-indigo-500" />{channel}</label>)}</div>
@@ -233,9 +240,9 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="flex flex-1 gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:flex-none sm:w-72">
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row flex-1 gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 min-w-0">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               value={search}
@@ -247,7 +254,7 @@ export default function CampaignDetailPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full sm:w-auto px-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
           >
             <option value="all">All statuses</option>
             {LEAD_STATUSES.map((s) => (
@@ -257,7 +264,8 @@ export default function CampaignDetailPage() {
         </div>
         <button
           onClick={() => setPickerOpen(true)}
-          className="inline-flex items-center gap-2 shrink-0 px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 transition-colors text-sm font-semibold text-white"
+          disabled={readOnly}
+          className="inline-flex items-center justify-center gap-2 shrink-0 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 transition-colors text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus size={16} />
           Add leads
@@ -277,12 +285,12 @@ export default function CampaignDetailPage() {
       ) : (
         <div className="space-y-3">
           {filteredLeads.map((lead) => (
-            <LeadRow key={lead.id} campaignId={campaignId} lead={lead} activities={activities} messages={messages.filter((m) => m.lead_id === lead.id)} onChanged={invalidate} />
+            <LeadRow key={lead.id} campaignId={campaignId} lead={lead} activities={activities} messages={messages.filter((m) => m.lead_id === lead.id)} onChanged={invalidate} readOnly={readOnly} />
           ))}
         </div>
       )}
 
-      <ActivityLog activities={activities} leads={leads} />
+      <StateHistory title="Team activity history" activities={activities} entityType="team_activity" />
 
       <ConfirmationDialog
         open={!!pendingCampaignStatus}
@@ -290,6 +298,14 @@ export default function CampaignDetailPage() {
         description={`Move this campaign from ${campaign.status} to ${pendingCampaignStatus}? This saves an immutable stage record and completed stages cannot be reopened.`}
         onReject={() => setPendingCampaignStatus(null)}
         onContinue={() => { if (pendingCampaignStatus) updateCampaignStatus(pendingCampaignStatus); setPendingCampaignStatus(null) }}
+      />
+
+      <ConfirmationDialog
+        open={pendingDelete}
+        title="Delete campaign"
+        description={`Delete campaign "${campaign.name}"? This removes the campaign and all its leads. This cannot be undone.`}
+        onReject={() => setPendingDelete(false)}
+        onContinue={() => { setPendingDelete(false); deleteCampaign() }}
       />
 
       <LeadsPickerModal
@@ -303,12 +319,13 @@ export default function CampaignDetailPage() {
   )
 }
 
-function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campaignId: string; lead: CampaignLead; activities: CampaignActivity[]; messages: OutreachMessage[]; onChanged: () => void }) {
+function LeadRow({ campaignId, lead, activities, messages, onChanged, readOnly }: { campaignId: string; lead: CampaignLead; activities: CampaignActivity[]; messages: OutreachMessage[]; onChanged: () => void; readOnly: boolean }) {
   const { fetchApi } = useApi()
   const [contactName, setContactName] = useState(lead.contact_name || '')
   const [contactRole, setContactRole] = useState(lead.contact_role || '')
   const [contactEmail, setContactEmail] = useState(lead.contact_email || '')
   const [contactPhone, setContactPhone] = useState(lead.contact_phone || '')
+  const [linkedinUrl, setLinkedinUrl] = useState(lead.linkedin_url || '')
   const [notes, setNotes] = useState(lead.notes || '')
   const [nextFollowUp, setNextFollowUp] = useState(lead.next_follow_up_at ? lead.next_follow_up_at.slice(0, 10) : '')
   const [saving, setSaving] = useState(false)
@@ -317,12 +334,14 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
   const [logging, setLogging] = useState(false)
   const [drafting, setDrafting] = useState('')
   const [pendingStatus, setPendingStatus] = useState<string | null>(null)
+  const [pendingRemove, setPendingRemove] = useState(false)
 
   useEffect(() => {
     setContactName(lead.contact_name || '')
     setContactRole(lead.contact_role || '')
     setContactEmail(lead.contact_email || '')
     setContactPhone(lead.contact_phone || '')
+    setLinkedinUrl(lead.linkedin_url || '')
     setNotes(lead.notes || '')
     setNextFollowUp(lead.next_follow_up_at ? lead.next_follow_up_at.slice(0, 10) : '')
   }, [lead.updated_at])
@@ -330,6 +349,7 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
   async function save() {
     setSaving(true)
     try {
+      const readiness = contactEmail.trim() ? 'ready_for_email' : linkedinUrl.trim() ? 'ready_for_linkedin' : 'missing_contact_info'
       const res = await fetchApi(`/api/v1/campaigns/${campaignId}/leads/${lead.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -337,6 +357,8 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
           contact_role: contactRole,
           contact_email: contactEmail,
           contact_phone: contactPhone,
+          linkedin_url: linkedinUrl || null,
+          outreach_readiness: readiness,
           notes,
           next_follow_up_at: nextFollowUp || null,
         }),
@@ -426,7 +448,6 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
   }
 
   async function remove() {
-    if (!window.confirm(`Remove ${lead.company_name} from this campaign?`)) return
     try {
       const res = await fetchApi(`/api/v1/campaigns/${campaignId}/leads/${lead.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Remove failed')
@@ -473,24 +494,25 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
             <span className="text-[11px] text-slate-500">added by {lead.created_by_name || 'teammate'}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={logContact}
-              disabled={logging || lead.do_not_contact || lead.outreach_readiness === 'missing_contact_info'}
-            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-xs font-semibold text-white transition-colors"
-            >
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={logContact}
+            disabled={logging || readOnly || lead.do_not_contact || lead.outreach_readiness === 'missing_contact_info'}
+            className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-xs font-semibold text-white transition-colors"
+          >
             {lead.do_not_contact ? 'Do not contact' : lead.outreach_readiness === 'missing_contact_info' ? 'Needs contact info' : 'Log contact'}
           </button>
           <select
             value={lead.status}
             onChange={(e) => setPendingStatus(e.target.value)}
-            className="px-2 py-1.5 bg-slate-800/70 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            disabled={readOnly}
+            className="flex-1 sm:flex-none min-w-0 px-2 py-1.5 bg-slate-800/70 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {[lead.status, ...(NEXT_LEAD_STATES[lead.status] || [])].map((s) => (
               <option key={s} value={s}>{s.replace('_', ' ')}</option>
             ))}
           </select>
-          <button onClick={remove} className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Remove lead">
+          <button onClick={() => setPendingRemove(true)} disabled={readOnly} className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-500 disabled:hover:bg-transparent" title={readOnly ? 'Campaign is read-only' : 'Remove lead'}>
             <Trash2 size={14} />
           </button>
         </div>
@@ -501,22 +523,26 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Contact name</label>
-              <input value={contactName} onChange={(e) => setContactName(e.target.value)} className={cn(inputClass, 'mt-0.5')} />
+              <input value={contactName} onChange={(e) => setContactName(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
             </div>
             <div>
               <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Role</label>
-              <input value={contactRole} onChange={(e) => setContactRole(e.target.value)} className={cn(inputClass, 'mt-0.5')} />
+              <input value={contactRole} onChange={(e) => setContactRole(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Email</label>
-              <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} className={cn(inputClass, 'mt-0.5')} />
+              <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
             </div>
             <div>
               <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Phone</label>
-              <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className={cn(inputClass, 'mt-0.5')} />
+              <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
             </div>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">LinkedIn URL</label>
+            <input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} disabled={readOnly} placeholder="https://linkedin.com/in/…" className={cn(inputClass, 'mt-0.5')} />
           </div>
         </div>
 
@@ -524,11 +550,12 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Next follow-up</label>
-              <input type="date" value={nextFollowUp} onChange={(e) => setNextFollowUp(e.target.value)} className={cn(inputClass, 'mt-0.5')} />
+              <input type="date" value={nextFollowUp} onChange={(e) => setNextFollowUp(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
             </div>
             <button
               onClick={() => setNextFollowUp('')}
-              className="self-end p-1.5 rounded-lg text-slate-500 hover:text-white text-xs"
+              disabled={readOnly}
+              className="self-end p-1.5 rounded-lg text-slate-500 hover:text-white text-xs disabled:opacity-40 disabled:cursor-not-allowed"
               title="Clear follow-up date"
             >
               Clear
@@ -536,7 +563,7 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={cn(inputClass, 'mt-0.5 resize-y')} />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} disabled={readOnly} rows={2} className={cn(inputClass, 'mt-0.5 resize-y')} />
           </div>
         </div>
       </div>
@@ -546,11 +573,12 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
       </div>
 
       <div className="px-4 pb-4 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
-        <div className="flex items-center gap-1.5 flex-1">
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <select
             value={logAction}
             onChange={(e) => setLogAction(e.target.value)}
-            className="px-2 py-1.5 bg-slate-800/70 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            disabled={readOnly}
+            className="shrink-0 px-2 py-1.5 bg-slate-800/70 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {ACTION_OPTIONS.map((a) => (
               <option key={a.value} value={a.value}>{a.label}</option>
@@ -559,12 +587,13 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
           <input
             value={logDetail}
             onChange={(e) => setLogDetail(e.target.value)}
+            disabled={readOnly}
             placeholder="What happened…"
-            className="flex-1 px-2.5 py-1.5 bg-slate-800/70 border border-white/10 rounded-lg text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            className="flex-1 min-w-0 px-2.5 py-1.5 bg-slate-800/70 border border-white/10 rounded-lg text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={logCustom}
-            disabled={logging}
+            disabled={logging || readOnly}
             className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-xs font-semibold text-white transition-colors"
           >
             Log
@@ -572,7 +601,7 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
         </div>
         <button
           onClick={save}
-          disabled={saving}
+          disabled={saving || readOnly}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 text-xs font-semibold text-white transition-colors"
         >
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
@@ -582,12 +611,13 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
       <div className="px-4 pb-4 border-t border-white/5 pt-3 space-y-2">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Draft outreach</span>
-          <button onClick={() => draft('email')} disabled={!!drafting || lead.do_not_contact || !lead.contact_email} className="px-2.5 py-1 rounded bg-indigo-500/80 hover:bg-indigo-400 disabled:opacity-40 text-[11px] text-white">{drafting === 'email' ? 'Drafting…' : 'Draft email'}</button>
-          <button onClick={() => draft('linkedin')} disabled={!!drafting || lead.do_not_contact || !lead.linkedin_url} className="px-2.5 py-1 rounded bg-sky-500/80 hover:bg-sky-400 disabled:opacity-40 text-[11px] text-white">{drafting === 'linkedin' ? 'Drafting…' : 'Draft LinkedIn'}</button>
-          {(!lead.contact_email && !lead.linkedin_url) && <span className="text-[10px] text-amber-400">Add verified contact info first</span>}
+          <button onClick={() => draft('email')} disabled={!!drafting || readOnly || lead.do_not_contact || !lead.contact_email} className="px-2.5 py-1 rounded bg-indigo-500/80 hover:bg-indigo-400 disabled:opacity-40 text-[11px] text-white">{drafting === 'email' ? 'Drafting…' : 'Draft email'}</button>
+          <button onClick={() => draft('linkedin')} disabled={!!drafting || readOnly || lead.do_not_contact || !lead.linkedin_url} className="px-2.5 py-1 rounded bg-sky-500/80 hover:bg-sky-400 disabled:opacity-40 text-[11px] text-white">{drafting === 'linkedin' ? 'Drafting…' : 'Draft LinkedIn'}</button>
+          {(!lead.contact_email && !lead.linkedin_url) && <span className="text-[10px] text-amber-400">Add contact info (email or LinkedIn URL) and save to enable drafts</span>}
+          {lead.outreach_readiness === 'needs_user_review' && (lead.contact_email || lead.linkedin_url) && <span className="text-[10px] text-amber-400">Save the lead to mark it ready for outreach</span>}
         </div>
         {messages.map((message) => <div key={message.id} className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-3">
-          <div className="flex items-center justify-between gap-2"><span className="text-[10px] uppercase tracking-wide text-indigo-300 font-semibold">{message.channel} · {message.status}</span>{message.status === 'draft' && <div className="flex gap-2"><button onClick={() => reviewMessage(message, 'approved')} className="text-[10px] text-emerald-300 hover:text-emerald-200">Approve</button><button onClick={() => reviewMessage(message, 'rejected')} className="text-[10px] text-red-300 hover:text-red-200">Reject</button></div>}</div>
+          <div className="flex items-center justify-between gap-2"><span className="text-[10px] uppercase tracking-wide text-indigo-300 font-semibold">{message.channel} · {message.status}</span>{message.status === 'draft' && <div className="flex gap-2"><button onClick={() => reviewMessage(message, 'approved')} disabled={readOnly} className="text-[10px] text-emerald-300 hover:text-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed">Approve</button><button onClick={() => reviewMessage(message, 'rejected')} disabled={readOnly} className="text-[10px] text-red-300 hover:text-red-200 disabled:opacity-40 disabled:cursor-not-allowed">Reject</button></div>}</div>
           {message.subject && <p className="text-xs font-semibold text-slate-200 mt-1">{message.subject}</p>}
           <p className="text-xs text-slate-400 whitespace-pre-wrap mt-1">{message.body}</p>
         </div>)}
@@ -597,47 +627,20 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged }: { campai
         title="Confirm lead stage"
         description={pendingStatus === 'contacted' ? `Move ${lead.company_name} to contacted? The campaign will also automatically move from draft to active, and both stage records will be saved.` : `Move ${lead.company_name} from ${lead.status.replace('_', ' ')} to ${pendingStatus?.replace('_', ' ')}? This stage will be saved and cannot be moved backward.`}
         onReject={() => setPendingStatus(null)}
-        onContinue={() => { if (pendingStatus) changeStatus(pendingStatus); setPendingStatus(null) }}
+        onContinue={() => {
+          if (pendingStatus) changeStatus(pendingStatus)
+          setPendingStatus(null)
+          setLogAction('emailed')
+          setLogDetail('')
+        }}
       />
-    </div>
-  )
-}
-
-function ActivityLog({ activities, leads }: { activities: CampaignActivity[]; leads: CampaignLead[] }) {
-  const leadName = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const l of leads) map[l.id] = l.company_name
-    return map
-  }, [leads])
-
-  if (activities.length === 0) return null
-
-  return (
-    <div className="glass rounded-xl p-5">
-      <p className="flex items-center gap-2 text-sm font-semibold text-white mb-3">
-        <History size={15} className="text-indigo-400" />
-        Team activity · {activities.length}
-      </p>
-      <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin">
-        {activities.map((a) => (
-          <div key={a.id} className="flex items-start gap-3 rounded-lg bg-slate-900/40 border border-white/5 px-3 py-2">
-            <ActionBadge action={a.action} />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-slate-300">
-                <span className="font-semibold text-white">{a.actor_name || 'Teammate'}</span>
-                {a.lead_id && leadName[a.lead_id] && (
-                  <span className="text-slate-500"> — {leadName[a.lead_id]}</span>
-                )}
-                {a.detail && <span className="text-slate-400"> · {a.detail}</span>}
-              </p>
-            </div>
-            <span className="text-[10px] text-slate-500 shrink-0">{a.created_at?.slice(0, 16).replace('T', ' ')}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4">
-        <StateHistory title="Team activity history" activities={activities} entityType="team_activity" />
-      </div>
+      <ConfirmationDialog
+        open={pendingRemove}
+        title="Remove lead"
+        description={`Remove ${lead.company_name} from this campaign? This removes the lead and its saved history.`}
+        onReject={() => setPendingRemove(false)}
+        onContinue={() => { setPendingRemove(false); remove() }}
+      />
     </div>
   )
 }

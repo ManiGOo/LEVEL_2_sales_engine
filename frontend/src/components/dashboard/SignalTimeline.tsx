@@ -28,7 +28,7 @@ export default function SignalTimeline({ signals, loading }: SignalFeedProps) {
       <CardContent className="p-0">
         <div className="max-h-[480px] xl:max-h-[560px] overflow-y-auto scrollbar-thin p-5 space-y-3">
           {loading &&
-            [...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}
+            [...Array(4)].map((_, i) => <Skeleton key={i} resource={i === 0} className="h-32 rounded-2xl" />)}
 
           {!loading &&
             signals.map((signal) => <SignalCard key={signal.event_id} signal={signal} />)}

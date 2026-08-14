@@ -6,6 +6,7 @@ import type { CompanyDetail, Signal } from '@/types/api'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScoreGauge } from '@/components/ui/ScoreGauge'
+import { TextContentSkeleton } from '@/components/ui/ResourceLoader'
 import WebEvidencePanel from '@/components/companies/WebEvidencePanel'
 import SignalDetailCard from '@/components/company/SignalDetailCard'
 import { motion } from 'motion/react'
@@ -42,10 +43,10 @@ export default function CompanyDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="h-6 w-40 bg-slate-800 rounded-lg animate-pulse" />
-        <div className="h-44 glass rounded-2xl animate-pulse" />
-        <div className="h-64 glass rounded-2xl animate-pulse" />
+      <div className="space-y-4 max-w-3xl">
+        <TextContentSkeleton lines={2} className="h-28" />
+        <TextContentSkeleton lines={4} className="h-44" />
+        <TextContentSkeleton lines={5} className="h-64" />
       </div>
     )
   }

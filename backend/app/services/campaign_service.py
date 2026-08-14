@@ -259,10 +259,20 @@ async def create_draft(db: AsyncSession, campaign_id: str, lead_id: str, channel
     lead = next((l for l in campaign.leads if l.id == lead_id), None)
     if not lead:
         return None
-    if lead.do_not_contact or lead.outreach_readiness in {"missing_contact_info", "needs_user_review", "blocked"}:
-        raise ValueError("Contact is not ready for outreach review")
+    if lead.do_not_contact:
+        raise ValueError("This contact is marked do-not-contact and cannot receive outreach.")
+    if lead.outreach_readiness == "missing_contact_info":
+        raise ValueError("Missing contact info — add an email or LinkedIn URL to the lead and save it before drafting.")
+    if lead.outreach_readiness == "needs_user_review":
+        raise ValueError("This contact hasn't been marked ready for outreach — add its contact info and save the lead first.")
+    if lead.outreach_readiness == "blocked":
+        raise ValueError("This contact is blocked from outreach.")
+    if channel == "email" and not lead.contact_email:
+        raise ValueError("No email address on file for this contact — add one and save the lead first.")
+    if channel == "linkedin" and not lead.linkedin_url:
+        raise ValueError("No LinkedIn URL on file for this contact — add one and save the lead first.")
     if channel not in (campaign.approved_channels or []):
-        raise ValueError(f"Channel is not approved for this campaign: {channel}")
+        raise ValueError(f"{channel} is not an approved channel for this campaign.")
     subject, body = _draft_body(campaign, lead, channel)
     message = OutreachMessage(campaign_id=campaign_id, lead_id=lead_id, channel=channel, status="draft", subject=subject, body=body, generated_by="system")
     db.add(message)
@@ -337,8 +347,12 @@ async def update_campaign(
         await _log(db, campaign_id, "status_change", _actor(user), detail=f"Status {previous_status} → {data.status}", entity_type="campaign", from_state=previous_status, to_state=data.status, snapshot=_campaign_snapshot(campaign))
 
     campaign.updated_at = _now()
-    if changes:
-        await _log(db, campaign_id, "updated", _actor(user), detail="; ".join(changes))
+    draft_changes = [c for c in changes if not c.startswith("Status ")]
+    if draft_changes:
+        await _log(
+            db, campaign_id, "updated", _actor(user), detail="; ".join(draft_changes),
+            entity_type="campaign", to_state=campaign.status, snapshot=_campaign_snapshot(campaign),
+        )
     await db.commit()
     await db.refresh(campaign)
     return campaign
