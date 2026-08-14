@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     sentinel_mcp_url: str = "http://sentinel:5000/mcp"
     sentinel_api_url: str = "http://sentinel:5000"
 
+    # Cold Email Service (Level 3) — sole outbound email engine
+    cold_email_url: str = "http://cold-email-service:8101"
+    cold_email_api_key: str = "change-me-in-production"
+
     # ChromaDB
     chroma_host: str = "chromadb"
     chroma_port: int = 8000

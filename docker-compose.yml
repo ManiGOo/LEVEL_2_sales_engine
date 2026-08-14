@@ -12,6 +12,9 @@ services:
     ports:
       - "8000:8000"
     env_file: ./backend/.env
+    environment:
+      COLD_EMAIL_URL: http://cold-email-service:8101
+      COLD_EMAIL_API_KEY: ${COLD_EMAIL_API_KEY:-change-me-in-production}
     networks:
       - default
       - scrapper_default
@@ -19,6 +22,8 @@ services:
       db:
         condition: service_healthy
       chromadb:
+        condition: service_started
+      cold-email-service:
         condition: service_started
 
   db:
@@ -46,6 +51,37 @@ services:
     environment:
       - IS_PERSISTENT=TRUE
 
+  # ===== Cold Email Service (Level 3) =====
+  cold-email-service:
+    build: ../LEVEL_3_email_sender/app/backend
+    ports:
+      - "8101:8101"
+    env_file: ../LEVEL_3_email_sender/app/backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://coldemail:password@cold-db:5432/cold_email
+      COLD_EMAIL_API_KEY: ${COLD_EMAIL_API_KEY:-change-me-in-production}
+      SALES_APP_WEBHOOK_URL: http://backend:8000/api/v1/cold-email/webhooks
+      SALES_APP_API_KEY: ${COLD_EMAIL_API_KEY:-change-me-in-production}
+    depends_on:
+      cold-db:
+        condition: service_healthy
+
+  cold-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cold_email
+      POSTGRES_USER: coldemail
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5435:5432"
+    volumes:
+      - coldpgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coldemail -d cold_email"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 networks:
   scrapper_default:
     external: true
@@ -53,3 +89,4 @@ networks:
 volumes:
   pgdata:
   chromadata:
+  coldpgdata:
