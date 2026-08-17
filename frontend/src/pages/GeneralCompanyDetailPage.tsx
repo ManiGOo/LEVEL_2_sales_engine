@@ -121,7 +121,19 @@ export default function GeneralCompanyDetailPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-4 pt-4 border-t border-white/5">
           {gc.website && <StatBox label="Website" value={gc.website} />}
           {gc.email && <StatBox label="Email" value={gc.email} />}
-          {gc.phone && <StatBox label="Phone" value={gc.phone} />}
+          {gc.phones_labeled && gc.phones_labeled.length > 0 ? (
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-white/5 space-y-1">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Phones</p>
+              {gc.phones_labeled.map((p, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs text-white">{p.phone}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 text-[9px] font-medium uppercase tracking-wider">{p.label}</span>
+                </div>
+              ))}
+            </div>
+          ) : gc.phone && (
+            <StatBox label="Phone" value={gc.phone} />
+          )}
           <StatBox label="Company status" value={gc.company_status || 'unknown'} />
           {gc.employees && <StatBox label="Employees" value={gc.employees} />}
           {gc.revenue && <StatBox label="Revenue" value={gc.revenue} />}

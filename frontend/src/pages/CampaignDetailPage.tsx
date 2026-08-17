@@ -536,7 +536,14 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged, readOnly }
               <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Phone</label>
+              <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold flex items-center">
+                Phone
+                {lead.contact_phone_label && (
+                  <span className="ml-1.5 px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-medium text-[9px]">
+                    {lead.contact_phone_label}
+                  </span>
+                )}
+              </label>
               <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
             </div>
           </div>

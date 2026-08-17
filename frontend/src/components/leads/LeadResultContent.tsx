@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Activity,
   AlertTriangle,
+  Phone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -196,6 +197,20 @@ export function LeadResultContent({ lead }: { lead: Lead }) {
           <Globe size={14} className="shrink-0" />
           {lead.website}
         </a>
+      )}
+
+      {lead.phones_labeled && lead.phones_labeled.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {lead.phones_labeled.map((p, i) => (
+            <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-800 border border-white/5">
+              <Phone size={12} className="text-slate-400" />
+              <span className="text-xs text-white">{p.phone}</span>
+              {p.label && (
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 text-[9px] font-medium uppercase tracking-wider">{p.label}</span>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
       {lead.decision_makers.length > 0 && (

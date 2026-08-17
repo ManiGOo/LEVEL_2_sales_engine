@@ -54,6 +54,7 @@ class GeneralCompanyCreate(BaseModel):
     hiring_news: list[HiringNewsInput] = []
     intent_signals: list[IntentSignalInput] = []
     trigger_events: list[IntentSignalInput] = []
+    phones_labeled: list[dict] = []
 
 
 class GeneralCompanyResponse(BaseModel):
@@ -78,6 +79,7 @@ class GeneralCompanyResponse(BaseModel):
     hiring_news: list[dict]
     intent_signals: list[dict]
     trigger_events: list[dict]
+    phones_labeled: list[dict] = []
     created_by: str | None = None
     created_by_name: str | None = None
     created_at: datetime

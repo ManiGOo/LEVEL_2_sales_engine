@@ -50,6 +50,7 @@ class Contact(Base):
     role: Mapped[str | None] = mapped_column(String(255))
     email: Mapped[str | None] = mapped_column(String(255), index=True)
     phone: Mapped[str | None] = mapped_column(String(255))
+    phone_label: Mapped[str | None] = mapped_column(String(50))  # Head Office | Mobile | Sales | Support | ...
     linkedin_url: Mapped[str | None] = mapped_column(String(500))
     source: Mapped[str | None] = mapped_column(String(100))
     source_url: Mapped[str | None] = mapped_column(String(1000))
@@ -79,6 +80,7 @@ class CampaignLead(Base):
     contact_role: Mapped[str | None] = mapped_column(String(255))
     contact_email: Mapped[str | None] = mapped_column(String(255))
     contact_phone: Mapped[str | None] = mapped_column(String(255))
+    contact_phone_label: Mapped[str | None] = mapped_column(String(50))  # Head Office | Mobile | Sales | Support | ...
     contact_source: Mapped[str | None] = mapped_column(String(100))
     contact_source_url: Mapped[str | None] = mapped_column(String(1000))
     contact_evidence: Mapped[str | None] = mapped_column(Text)

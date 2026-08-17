@@ -32,6 +32,7 @@ class GeneralCompany(Base):
     hiring_news: Mapped[list] = mapped_column(JSON, default=list)
     intent_signals: Mapped[list] = mapped_column(JSON, default=list)
     trigger_events: Mapped[list] = mapped_column(JSON, default=list)
+    phones_labeled: Mapped[list] = mapped_column(JSON, default=list)  # [{phone, label, page_url, context, tel_href}]
 
     created_by: Mapped[str | None] = mapped_column(String(36))
     created_by_name: Mapped[str | None] = mapped_column(String(255))

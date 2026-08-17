@@ -164,6 +164,7 @@ export interface CampaignLead {
   contact_role: string
   contact_email: string
   contact_phone: string
+  contact_phone_label?: string | null
   contact_source?: string
   contact_source_url?: string
   contact_evidence?: string
@@ -272,6 +273,7 @@ export interface Lead {
   error: string
   workflow_id: string
   fetched_at: string | null
+  phones_labeled?: { phone: string, label: string, page_url?: string }[]
 }
 
 export interface GeneralCompany {
@@ -288,6 +290,7 @@ export interface GeneralCompany {
   revenue: string
   email: string
   phone: string
+  phones_labeled?: { phone: string, label: string, page_url?: string }[]
   hiring_headline: string
   activity_summary: string
   notes: string

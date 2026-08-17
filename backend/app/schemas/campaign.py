@@ -11,6 +11,7 @@ class CampaignLeadSeed(BaseModel):
     contact_role: str | None = None
     contact_email: str | None = None
     contact_phone: str | None = None
+    contact_phone_label: str | None = None  # Head Office | Mobile | Sales | Support | ...
     contact_source: str | None = None
     contact_source_url: str | None = None
     contact_evidence: str | None = None
@@ -52,6 +53,7 @@ class CampaignLeadUpdate(BaseModel):
     contact_role: str | None = None
     contact_email: str | None = None
     contact_phone: str | None = None
+    contact_phone_label: str | None = None
     status: str | None = None
     last_contact_at: datetime | None = None
     next_follow_up_at: datetime | None = None
@@ -96,6 +98,7 @@ class CampaignLeadResponse(BaseModel):
     contact_role: str | None = None
     contact_email: str | None = None
     contact_phone: str | None = None
+    contact_phone_label: str | None = None
     contact_source: str | None = None
     contact_source_url: str | None = None
     contact_evidence: str | None = None

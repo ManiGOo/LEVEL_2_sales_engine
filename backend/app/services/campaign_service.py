@@ -142,6 +142,7 @@ async def _to_lead(db: AsyncSession, campaign_id: str, seed: CampaignLeadSeed, u
         contact_role=(seed.contact_role or "").strip() or None,
         contact_email=(seed.contact_email or "").strip() or None,
         contact_phone=(seed.contact_phone or "").strip() or None,
+        contact_phone_label=(seed.contact_phone_label or "").strip() or None,
         contact_source=(seed.contact_source or "").strip() or None,
         contact_source_url=(seed.contact_source_url or "").strip() or None,
         contact_evidence=(seed.contact_evidence or "").strip() or None,
@@ -164,6 +165,7 @@ async def _upsert_contact(db: AsyncSession, seed: CampaignLeadSeed) -> Contact:
         "company_key": seed.company_key, "company_name": seed.company_name or seed.company_key,
         "name": name, "role": (seed.contact_role or "").strip() or None,
         "email": (seed.contact_email or "").strip() or None, "phone": (seed.contact_phone or "").strip() or None,
+        "phone_label": (seed.contact_phone_label or "").strip() or None,
         "linkedin_url": (seed.linkedin_url or "").strip() or None,
         "source": (seed.contact_source or "").strip() or None, "source_url": (seed.contact_source_url or "").strip() or None,
         "evidence": (seed.contact_evidence or "").strip() or None, "confidence": (seed.contact_confidence or "").strip() or None,
@@ -420,6 +422,8 @@ async def update_lead(
         lead.contact_email = (data.contact_email or "").strip() or None
     if data.contact_phone is not None:
         lead.contact_phone = (data.contact_phone or "").strip() or None
+    if data.contact_phone_label is not None:
+        lead.contact_phone_label = (data.contact_phone_label or "").strip() or None
     if data.contact_source is not None:
         lead.contact_source = (data.contact_source or "").strip() or None
     if data.contact_source_url is not None:
