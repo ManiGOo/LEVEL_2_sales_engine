@@ -31,13 +31,13 @@ body {
 }
 
 .glass {
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(30, 41, 59, 0.88);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .glass-hover:hover {
-  background: rgba(30, 41, 59, 0.85);
+  background: rgba(30, 41, 59, 0.92);
   border-color: rgba(99, 102, 241, 0.3);
 }
 
@@ -191,7 +191,7 @@ body {
 
 @supports (backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px)) {
   .glass {
-    background: rgba(15, 23, 42, 0.55);
+    background: rgba(15, 23, 42, 0.78);
   }
 }
 

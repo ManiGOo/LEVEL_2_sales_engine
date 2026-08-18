@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
@@ -43,6 +43,9 @@ export default function CampaignDetailPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const leadRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const [editingContext, setEditingContext] = useState(false)
   const [pendingCampaignStatus, setPendingCampaignStatus] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState(false)
@@ -87,6 +90,26 @@ export default function CampaignDetailPage() {
     for (const l of leads) counts[l.status] = (counts[l.status] || 0) + 1
     return counts
   }, [leads])
+
+  const dropdownMatches = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return []
+    return leads.filter((l) =>
+      [l.company_name, l.contact_name, l.contact_role]
+        .filter(Boolean)
+        .some((v) => v!.toLowerCase().includes(q))
+    ).slice(0, 8)
+  }, [leads, search])
+
+  const scrollToLead = useCallback((leadId: string) => {
+    setDropdownOpen(false)
+    const el = leadRefs.current.get(leadId)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-slate-900')
+      setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-slate-900'), 2000)
+    }
+  }, [])
 
   async function updateCampaignStatus(status: string) {
     try {
@@ -242,14 +265,33 @@ export default function CampaignDetailPage() {
 
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         <div className="flex flex-col sm:flex-row flex-1 gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 min-w-0">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <div className="relative flex-1 min-w-0" ref={searchRef}>
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 z-10" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setDropdownOpen(true) }}
+              onFocus={() => { if (search.trim()) setDropdownOpen(true) }}
+              onBlur={() => setTimeout(() => setDropdownOpen(false), 200)}
               placeholder="Search company, contact, role…"
               className="w-full pl-8 pr-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
             />
+            {dropdownOpen && dropdownMatches.length > 0 && (
+              <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                {dropdownMatches.map((l) => (
+                  <button
+                    key={l.id}
+                    onMouseDown={() => scrollToLead(l.id)}
+                    className="w-full text-left px-3 py-2 hover:bg-indigo-500/20 transition-colors flex items-center gap-3 border-b border-white/5 last:border-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-white truncate">{l.company_name}</p>
+                      <p className="text-xs text-slate-400 truncate">{l.contact_name}{l.contact_role ? ` · ${l.contact_role}` : ''}</p>
+                    </div>
+                    <LeadStatusBadge status={l.status} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <select
             value={statusFilter}
@@ -285,7 +327,7 @@ export default function CampaignDetailPage() {
       ) : (
         <div className="space-y-3">
           {filteredLeads.map((lead) => (
-            <LeadRow key={lead.id} campaignId={campaignId} lead={lead} activities={activities} messages={messages.filter((m) => m.lead_id === lead.id)} onChanged={invalidate} readOnly={readOnly} />
+            <LeadRow key={lead.id} campaignId={campaignId} lead={lead} activities={activities} messages={messages.filter((m) => m.lead_id === lead.id)} onChanged={invalidate} readOnly={readOnly} ref={(el) => { if (el) leadRefs.current.set(lead.id, el) }} />
           ))}
         </div>
       )}
@@ -319,7 +361,7 @@ export default function CampaignDetailPage() {
   )
 }
 
-function LeadRow({ campaignId, lead, activities, messages, onChanged, readOnly }: { campaignId: string; lead: CampaignLead; activities: CampaignActivity[]; messages: OutreachMessage[]; onChanged: () => void; readOnly: boolean }) {
+const LeadRow = React.forwardRef<HTMLDivElement, { campaignId: string; lead: CampaignLead; activities: CampaignActivity[]; messages: OutreachMessage[]; onChanged: () => void; readOnly: boolean }>(({ campaignId, lead, activities, messages, onChanged, readOnly }, ref) => {
   const { fetchApi } = useApi()
   const [contactName, setContactName] = useState(lead.contact_name || '')
   const [contactRole, setContactRole] = useState(lead.contact_role || '')
@@ -458,7 +500,7 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged, readOnly }
   }
 
   return (
-    <div className="glass rounded-xl overflow-hidden">
+    <div ref={ref} className="glass rounded-xl overflow-hidden transition-all duration-300">
       <div className="p-4 flex flex-wrap items-center gap-3 border-b border-white/5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -518,42 +560,39 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged, readOnly }
         </div>
       </div>
 
-      <div className="p-4 grid sm:grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Contact name</label>
-              <input value={contactName} onChange={(e) => setContactName(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
-            </div>
-            <div>
-              <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Role</label>
-              <input value={contactRole} onChange={(e) => setContactRole(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
-            </div>
+      <div className="p-4 space-y-3">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Contact name</label>
+            <input value={contactName} onChange={(e) => setContactName(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Email</label>
-              <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
-            </div>
-            <div>
-              <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold flex items-center">
-                Phone
-                {lead.contact_phone_label && (
-                  <span className="ml-1.5 px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-medium text-[9px]">
-                    {lead.contact_phone_label}
-                  </span>
-                )}
-              </label>
-              <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
-            </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Role</label>
+            <input value={contactRole} onChange={(e) => setContactRole(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
           </div>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Email</label>
+            <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold inline-flex items-center">
+              Phone
+              {lead.contact_phone_label && (
+                <span className="ml-1.5 px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-medium text-[9px]">
+                  {lead.contact_phone_label}
+                </span>
+              )}
+            </label>
+            <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} disabled={readOnly} className={cn(inputClass, 'mt-0.5')} />
+          </div>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">LinkedIn URL</label>
             <input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} disabled={readOnly} placeholder="https://linkedin.com/in/…" className={cn(inputClass, 'mt-0.5')} />
           </div>
-        </div>
-
-        <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Next follow-up</label>
@@ -568,10 +607,10 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged, readOnly }
               Clear
             </button>
           </div>
-          <div>
-            <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} disabled={readOnly} rows={2} className={cn(inputClass, 'mt-0.5 resize-y')} />
-          </div>
+        </div>
+        <div className="sm:pt-1">
+          <label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Notes</label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} disabled={readOnly} rows={3} className={cn(inputClass, 'mt-0.5 resize-y')} />
         </div>
       </div>
 
@@ -650,4 +689,4 @@ function LeadRow({ campaignId, lead, activities, messages, onChanged, readOnly }
       />
     </div>
   )
-}
+})

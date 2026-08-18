@@ -13,12 +13,14 @@ import {
   AlertCircle,
   CheckCircle2,
   UserCircle,
+  Plus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Modal } from '@/components/ui/Modal'
 import Pagination from '@/components/ui/Pagination'
 import { LeadResultContent } from '@/components/leads/LeadResultContent'
 import { showToast, dismissToast } from '@/components/ui/toast'
+import ManualLeadModal from './ManualLeadModal'
 
 const PAGE_SIZE = 30
 const MAX_SELECT = 10
@@ -58,6 +60,8 @@ export default function CreateLeadFromCompanyView() {
   const [polling, setPolling] = useState(false)
   const [error, setError] = useState('')
   const [detailLead, setDetailLead] = useState<Lead | null>(null)
+  const [manualLeadOpen, setManualLeadOpen] = useState(false)
+  const [editCompany, setEditCompany] = useState<GeneralCompany | null>(null)
   const progressToastRef = useRef<string | null>(null)
   const startedRunningRef = useRef(false)
   const completedToastRef = useRef(false)
@@ -222,9 +226,13 @@ export default function CreateLeadFromCompanyView() {
             />
           </div>
         </form>
-        <p className="text-xs text-slate-500 sm:text-right">
-          Pick up to {MAX_SELECT} companies your team added and turn them into researched leads.
-        </p>
+        <button
+          onClick={() => setManualLeadOpen(true)}
+          className="inline-flex items-center justify-center gap-2 shrink-0 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 transition-colors text-sm font-semibold text-white"
+        >
+          <Plus size={16} />
+          Add lead manually
+        </button>
       </div>
 
       {hasSelection && (
@@ -339,13 +347,13 @@ export default function CreateLeadFromCompanyView() {
                     disabled={disabled}
                     className="accent-indigo-500 w-5 h-5 shrink-0 disabled:opacity-30"
                   />
-                  <div
-                    className="flex-1 min-w-0 cursor-pointer"
-                    onClick={() => {
-                      if (lead?.status === 'completed') setDetailLead(lead)
-                    }}
-                    title={lead?.status === 'completed' ? 'View lead details' : undefined}
-                  >
+                <div
+                  className="flex-1 min-w-0 cursor-pointer"
+                  onClick={() => {
+                    if (lead && lead.status !== 'not_started') setDetailLead(lead)
+                  }}
+                  title={lead && lead.status !== 'not_started' ? 'View lead details' : undefined}
+                >
                     <h3 className="text-sm font-semibold text-white truncate">{gc.name}</h3>
                     <p className="text-[11px] text-slate-500 mt-0.5 truncate">
                       {[
@@ -387,6 +395,20 @@ export default function CreateLeadFromCompanyView() {
                     )}
                   </span>
                   <LeadStatusPill lead={lead} />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditCompany(gc)
+                      setManualLeadOpen(true)
+                    }}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors shrink-0"
+                    title="Edit lead"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                      <path d="m15 5 4 4" />
+                    </svg>
+                  </button>
                 </div>
               </motion.div>
             )
@@ -470,8 +492,41 @@ export default function CreateLeadFromCompanyView() {
       )}
 
       <Modal open={!!detailLead} title={detailLead?.company_name || ''} onClose={() => setDetailLead(null)}>
-        {detailLead && <LeadResultContent lead={detailLead} />}
+        {detailLead && (() => {
+          if (detailLead.status === 'running')
+            return (
+              <div className="p-6 text-center space-y-3">
+                <Loader2 size={28} className="mx-auto animate-spin text-amber-400" />
+                <h3 className="text-lg font-semibold text-white">{detailLead.company_name}</h3>
+                <p className="text-sm text-slate-400">Researching website, LinkedIn & hiring…</p>
+              </div>
+            )
+          if (detailLead.status === 'failed')
+            return (
+              <div className="p-6 text-center space-y-3">
+                <AlertCircle size={28} className="mx-auto text-red-400" />
+                <h3 className="text-lg font-semibold text-white">{detailLead.company_name}</h3>
+                <p className="text-sm text-red-400">{detailLead.error || 'Research failed'}</p>
+              </div>
+            )
+          return <LeadResultContent lead={detailLead} />
+        })()}
       </Modal>
+
+      <ManualLeadModal
+        open={manualLeadOpen}
+        onClose={() => {
+          setManualLeadOpen(false)
+          setEditCompany(null)
+        }}
+        onCreated={() => {
+          setManualLeadOpen(false)
+          setEditCompany(null)
+          queryClient.invalidateQueries({ queryKey: ['general-companies'] })
+          queryClient.invalidateQueries({ queryKey: ['leads', 'status'] })
+        }}
+        editCompany={editCompany}
+      />
     </div>
   )
 }

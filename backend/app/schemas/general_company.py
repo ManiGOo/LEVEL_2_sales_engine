@@ -57,6 +57,17 @@ class GeneralCompanyCreate(BaseModel):
     phones_labeled: list[dict] = []
 
 
+class GeneralCompanyUpdate(BaseModel):
+    hiring_headline: str | None = None
+    activity_summary: str | None = None
+    notes: str | None = None
+    decision_makers: list[DecisionMakerInput] | None = None
+    hiring: list[HiringInput] | None = None
+    hiring_news: list[HiringNewsInput] | None = None
+    intent_signals: list[IntentSignalInput] | None = None
+    trigger_events: list[IntentSignalInput] | None = None
+
+
 class GeneralCompanyResponse(BaseModel):
     id: str
     company_key: str

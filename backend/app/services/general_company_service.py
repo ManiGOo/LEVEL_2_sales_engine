@@ -4,7 +4,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.general_company import GeneralCompany
 from app.models.user import User
-from app.schemas.general_company import GeneralCompanyCreate, GeneralCompanyPage, GeneralCompanyResponse
+from app.schemas.general_company import GeneralCompanyCreate, GeneralCompanyUpdate, GeneralCompanyPage, GeneralCompanyResponse
 
 
 def _slugify(name: str) -> str:
@@ -49,6 +49,27 @@ async def create_general_company(
         created_by_name=user.name,
     )
     db.add(company)
+    await db.commit()
+    await db.refresh(company)
+    return company
+
+
+async def update_general_company(
+    db: AsyncSession,
+    company_key: str,
+    data: GeneralCompanyUpdate,
+) -> GeneralCompany | None:
+    company = await get_general_company_by_key(db, company_key)
+    if not company:
+        return None
+    
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if field in ("decision_makers", "hiring", "hiring_news", "intent_signals", "trigger_events"):
+            setattr(company, field, [item.model_dump() for item in value] if value is not None else getattr(company, field))
+        elif value is not None:
+            setattr(company, field, value.strip() if isinstance(value, str) else value)
+    
     await db.commit()
     await db.refresh(company)
     return company

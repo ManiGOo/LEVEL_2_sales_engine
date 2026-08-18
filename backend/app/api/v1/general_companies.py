@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.schemas.general_company import GeneralCompanyCreate, GeneralCompanyResponse, GeneralCompanyPage
+from app.schemas.general_company import GeneralCompanyCreate, GeneralCompanyUpdate, GeneralCompanyResponse, GeneralCompanyPage
 from app.services import general_company_service
 
 router = APIRouter(prefix="/general-companies", tags=["general-companies"])
@@ -15,6 +15,19 @@ async def create_general_company(
     user=Depends(get_current_user),
 ):
     company = await general_company_service.create_general_company(db, data, user)
+    return company
+
+
+@router.patch("/{company_key}", response_model=GeneralCompanyResponse)
+async def update_general_company(
+    company_key: str,
+    data: GeneralCompanyUpdate,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    company = await general_company_service.update_general_company(db, company_key, data)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
     return company
 
 
