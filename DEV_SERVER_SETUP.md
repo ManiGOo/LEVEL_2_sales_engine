@@ -6,6 +6,7 @@ How to deploy both stacks (scrapper + sales app) on a remote dev SSH server.
 - Ubuntu 22.04/24.04 LTS, fresh SSH access (root or sudo user)
 - Docker Engine + Docker Compose v2 not yet installed
 - You have SSH key or password access
+- Port 3000 may already be in use — use **3200** for the frontend
 
 ---
 
@@ -90,6 +91,11 @@ EOF
 | `GROQ_API_KEY` | Same key as scrapper, or a separate one |
 | `SENTINEL_API_URL` | `http://app:5000` — reaches scrapper via the shared Docker network |
 
+> **Note:** If using port 3200 for the frontend, add it to CORS origins in `backend/app/config.py`:
+> ```python
+> cors_origins: list[str] = ["http://localhost:3000", "http://localhost:80", "http://localhost:3200"]
+> ```
+
 ---
 
 ## 3) Open Firewall Ports
@@ -99,7 +105,7 @@ Expose the ports you need. For a dev server, at minimum:
 ```bash
 # if using ufw
 sudo ufw allow 22/tcp      # SSH
-sudo ufw allow 3000/tcp    # Frontend (React app)
+sudo ufw allow 3200/tcp    # Frontend (React app)
 sudo ufw allow 8000/tcp    # Backend API (FastAPI)
 sudo ufw allow 5000/tcp    # Scrapper API (optional, direct access)
 sudo ufw enable
@@ -130,6 +136,19 @@ cd ~/scrapper && docker compose up -d --build \
 && cd ~/sales-app && docker compose up -d --build
 ```
 
+> **Dev server port override:** If port 3000 is in use, override the frontend port:
+> ```bash
+> cd ~/sales-app
+> docker compose up -d --build -e FRONTEND_PORT=3200
+> ```
+> Or edit `docker-compose.yml` temporarily:
+> ```yaml
+> services:
+>   frontend:
+>     ports:
+>       - "3200:80"
+> ```
+
 ---
 
 ## 5) Verify
@@ -146,7 +165,7 @@ Expected:
 | `scrapper-app-1` | 5000 | Up |
 | `scrapper-worker-1` | — | Up |
 | `scrapper-enricher-1` | — | Up |
-| `sales-app-frontend-1` | 3000 | Up |
+| `sales-app-frontend-1` | 3200 | Up |
 | `sales-app-backend-1` | 8000 | Up |
 | `sales-app-db-1` | 5434 | Up (healthy) |
 | `sales-app-chromadb-1` | 8100 | Up |
@@ -158,7 +177,16 @@ curl -s http://localhost:8000/health        # backend: {"status":"ok"}
 curl -s http://localhost:5000/api/v1/companies/count  # scrapper API
 ```
 
-Open in browser: `http://<server-ip>:3000`
+Open in browser: `http://<server-ip>:3200`
+
+> **Note:** The frontend defaults to port 3000 locally. On the dev server, map it to 3200 to avoid conflicts:
+> ```yaml
+> # docker-compose.yml override on dev server
+> services:
+>   frontend:
+>     ports:
+>       - "3200:80"
+> ```
 
 ---
 
@@ -177,7 +205,7 @@ server {
     server_name your-domain.com;
 
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3200;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
