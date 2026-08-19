@@ -31,7 +31,7 @@ Services / ports:
 |------------|-----------|-------|
 | `frontend` | 3000      | React + Tailwind (`Dockerfile`) |
 | `backend`  | 8000      | FastAPI (`Dockerfile`); needs `backend/.env` (Pharma `DATABASE_URL` + `GROQ_API_KEY`) |
-| `lead_worker` | —      | Dedicated Temporal worker running `LeadResearchWorkflow` on `sales-lead-task-queue` (needs `TAVILY_API_KEY` + Temporal) |
+| `lead_worker` | —      | Dedicated Temporal worker running `LeadResearchWorkflow` (lead research) **and** `WebEvidenceWorkflow` (web-evidence search) on `sales-lead-task-queue` (needs `TAVILY_API_KEY` + Temporal) |
 | `chromadb` | 8100      | Chroma vector store |
 
 Requires `backend/.env` (already present) — **keep it gitignored**, it holds the

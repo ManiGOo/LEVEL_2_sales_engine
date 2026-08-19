@@ -31,7 +31,7 @@ A full-stack **sales / CRM UI** over the pharma intelligence data. It provides:
 |---|---|---|
 | Scraped regulatory data (read) | Shared Pharma Postgres — schema `sdr_data` | `DATABASE_URL` |
 | Sales-app tables (users, campaigns, …) | Same Pharma Postgres — schema `sales_app` (created on startup) | `DATABASE_URL` |
-| Lead-research execution | A Temporal server (dev server already runs one at `localhost:7233`); the sales-app **`lead_worker`** executes `LeadResearchWorkflow` on `sales-lead-task-queue` | `TEMPORAL_HOST` / `TEMPORAL_TASK_QUEUE` |
+| Lead-research + web-evidence execution | A Temporal server (dev server already runs one at `localhost:7233`); the sales-app **`lead_worker`** executes `LeadResearchWorkflow` (lead research) and `WebEvidenceWorkflow` (web-evidence search) on `sales-lead-task-queue` | `TEMPORAL_HOST` / `TEMPORAL_TASK_QUEUE` |
 | Groq LLM | Groq console key | `GROQ_API_KEY` |
 | Tavily web search | Tavily console key (used by lead-research activities) | `TAVILY_API_KEY` |
 
@@ -161,7 +161,7 @@ Compose details (`docker-compose.yml`):
 |---|---|---|---|
 | `frontend` | `./frontend` (node:22 → nginx) | `backend` | Serves built SPA on `:3000`; nginx proxies `/api/` → `backend:8000` |
 | `backend` | `./backend` (python:3.12-slim) | `chromadb` | `uvicorn app.main:app --port 8000`; `TEMPORAL_HOST=host.docker.internal:7233` |
-| `lead_worker` | `./backend` (`Dockerfile.lead_worker`, Playwright base) | `chromadb` | `python -m app.temporal.worker`; runs `LeadResearchWorkflow` on `sales-lead-task-queue` |
+| `lead_worker` | `./backend` (`Dockerfile.lead_worker`, Playwright base) | `chromadb` | `python -m app.temporal.worker`; runs `LeadResearchWorkflow` (lead research) **and** `WebEvidenceWorkflow` (web-evidence search) on `sales-lead-task-queue` |
 | `chromadb` | `chromadb/chroma:latest` | — | Volume `chromadata`, host port `8100` |
 
 The backend and `lead_worker` containers reach the **host's** Temporal server
@@ -260,7 +260,7 @@ curl -s -X POST http://localhost:8000/api/v1/auth/login \
 | signals | `/signals` | High-priority signals (from shared DB) |
 | companies | `/companies` | Company list / detail / ranking |
 | conversations | `/conversations` | Chat conversation history |
-| web_evidence | `/web_evidence` | Web evidence lookups (read-only) |
+| web_evidence | `/web-evidence` | Web evidence: read results, trigger a search (`POST /search/{event_id}`, runs `WebEvidenceWorkflow`), poll status (`GET /status/{workflow_id}`) |
 | leads | `/leads` | Lead research (starts `LeadResearchWorkflow` on Temporal) + status |
 | reports | `/reports` | XLSX / reporting export |
 | campaigns | `/campaigns` | Campaign create / approve / start |

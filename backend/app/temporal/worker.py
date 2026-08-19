@@ -22,6 +22,12 @@ from app.temporal.lead_research import (
     scrape_company_website_activity,
     search_corporate_registry_activity,
 )
+from app.temporal.web_evidence import (
+    WebEvidenceWorkflow,
+    generate_queries_activity,
+    search_web_for_queries,
+    fetch_and_classify_articles,
+)
 
 
 async def main():
@@ -30,7 +36,7 @@ async def main():
     worker = Worker(
         client,
         task_queue=settings.temporal_task_queue,
-        workflows=[LeadResearchWorkflow],
+        workflows=[LeadResearchWorkflow, WebEvidenceWorkflow],
         activities=[
             search_company_profile_activity,
             search_decision_makers_activity,
@@ -40,6 +46,9 @@ async def main():
             mark_lead_failed_activity,
             scrape_company_website_activity,
             search_corporate_registry_activity,
+            generate_queries_activity,
+            search_web_for_queries,
+            fetch_and_classify_articles,
         ],
         activity_executor=ThreadPoolExecutor(max_workers=20),
     )
