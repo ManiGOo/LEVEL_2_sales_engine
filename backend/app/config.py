@@ -3,8 +3,10 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # Database
-    database_url: str = "postgresql+asyncpg://sales:password@db:5432/sales_app"
+    # Database — single shared Postgres instance. The already-scraped data lives
+    # in the `sdr_data` schema (written by the scraper); the sales-app's own
+    # tables live in the `sales_app` schema. Both share this one database.
+    database_url: str  # required — provided via DATABASE_URL in backend/.env
 
     # JWT
     secret_key: str = "change-me-in-production"
@@ -16,9 +18,9 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-120b"
 
-    # Sentinel
-    sentinel_mcp_url: str = "http://sentinel:5000/mcp"
-    sentinel_api_url: str = "http://sentinel:5000"
+    # Temporal — the sales-app runs its own lead-research worker on this queue.
+    temporal_host: str = "localhost:7233"
+    temporal_task_queue: str = "sales-lead-task-queue"
 
     # ChromaDB
     chroma_host: str = "chromadb"

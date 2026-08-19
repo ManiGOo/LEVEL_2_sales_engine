@@ -1,6 +1,16 @@
 # Dev Server Setup Guide
 
-How to deploy both stacks (scrapper + sales app) on a remote dev SSH server.
+How to deploy the **sales app** standalone on a remote dev SSH server.
+
+The sales app is **fully independent** — it does **not** depend on the scraper
+for anything. It only needs:
+- the **shared remote Pharma Postgres DB** (`pharma`, schema `sdr_data` for
+  scraped data + `sales_app` for the app's own tables), and
+- a **Temporal server** (the dev server already runs one at `localhost:7233`).
+
+> Scraped data is produced elsewhere (the scraper writes into the same Pharma
+> DB), but the sales app never talks to the scraper over the network — it reads
+> the DB directly and runs its own `lead_worker` Temporal worker.
 
 **Assumptions:**
 - Ubuntu 22.04/24.04 LTS, fresh SSH access (root or sudo user)
@@ -29,8 +39,7 @@ newgrp docker
 # install Docker Compose v2 (included with get.docker.com)
 docker compose version
 
-# clone both repos
-git clone git@github.com:ManiGOo/AIVOA-Sentinel-level-1.git scrapper
+# clone the sales app
 git clone git@github.com:ManiGOo/LEVEL_2_sales_engine.git sales-app
 ```
 
@@ -41,33 +50,15 @@ docker --version          # 24+
 docker compose version    # 2.x
 ```
 
+> The sales app assumes a Temporal server is already reachable at
+> `localhost:7233` on the dev server. If it is not, start one first:
+> `docker run -p 7233:7233 temporalio/admin-tools temporal server start-dev`
+
 ---
 
 ## 2) Configure Environment Variables
 
-Both stacks need `.env` files. These are gitignored — create them manually on the server.
-
-### Scrapper stack (`scrapper/.env`)
-
-```bash
-cd scrapper
-
-cat > .env <<'EOF'
-GROQ_API_KEY=gsk_your_groq_key_here
-VIEW_ONLY=false
-DATABASE_URL=postgresql://user:password@host:5432/dbname
-TAVILY_API_KEY=tvly-your-tavily-key
-BACKUP_TAVILY_API_KEY=tvly-your-backup-tavily-key
-EOF
-```
-
-| Var | Source |
-|-----|--------|
-| `GROQ_API_KEY` | <https://console.groq.com/keys> |
-| `DATABASE_URL` | Your Postgres connection string (remote or hosted) |
-| `TAVILY_API_KEY` | <https://app.tavily.com/home> |
-| `BACKUP_TAVILY_API_KEY` | Second Tavily key for overflow |
-| `VIEW_ONLY` | `false` to enable research/campaign writes |
+The sales app needs a `.env` file (gitignored — create it manually on the server).
 
 ### Sales app stack (`sales-app/backend/.env`)
 
@@ -75,23 +66,41 @@ EOF
 cd sales-app
 
 cat > backend/.env <<'EOF'
-DATABASE_URL=postgresql+asyncpg://sales:password@localhost:5432/sales_app
+# Shared Pharma Postgres — scraped data (sdr_data) + sales-app tables (sales_app)
+DATABASE_URL=postgresql+asyncpg://pharmabkp:aivoadma25@216.48.184.249:5432/pharma
+
 SECRET_KEY=change-me-to-a-random-64-char-string
+
+# Groq (LLM for chat + lead research)
 GROQ_API_KEY=gsk_your_groq_key_here
 GROQ_MODEL=openai/gpt-oss-120b
-SENTINEL_MCP_URL=http://app:5000/mcp
-SENTINEL_API_URL=http://app:5000
+
+# Tavily (web search used by lead-research activities)
+TAVILY_API_KEY=tvly-your-tavily-key
+
+# Temporal — sales-app starts LeadResearchWorkflow; its own lead_worker executes it.
+# localhost for bare-metal; the compose file overrides this to host.docker.internal:7233.
+TEMPORAL_HOST=localhost:7233
+TEMPORAL_TASK_QUEUE=sales-lead-task-queue
+
+# ChromaDB vector store
+CHROMA_HOST=chromadb
+CHROMA_PORT=8000
 EOF
 ```
 
 | Var | Notes |
 |-----|-------|
-| `DATABASE_URL` | Points to the local Postgres container (`db:5432`) — leave as-is |
+| `DATABASE_URL` | Shared remote Pharma DB (`postgresql+asyncpg://…@216.48.184.249:5432/pharma`). The `sales_app` schema is created automatically on startup. |
 | `SECRET_KEY` | Generate with `openssl rand -hex 32` |
-| `GROQ_API_KEY` | Same key as scrapper, or a separate one |
-| `SENTINEL_API_URL` | `http://app:5000` — reaches scrapper via the shared Docker network |
+| `GROQ_API_KEY` | <https://console.groq.com/keys> |
+| `TAVILY_API_KEY` | <https://app.tavily.com/home> |
+| `TEMPORAL_HOST` | `localhost:7233` (the dev server's Temporal); inside the compose containers it is overridden to `host.docker.internal:7233` |
+| `TEMPORAL_TASK_QUEUE` | `sales-lead-task-queue` — the queue the sales-app `lead_worker` listens on |
+| `CHROMA_HOST` / `CHROMA_PORT` | `chromadb` / `8000` |
 
-> **Note:** If using port 3200 for the frontend, add it to CORS origins in `backend/app/config.py`:
+> **Note:** If using port 3200 for the frontend, add it to CORS origins in
+> `backend/app/config.py`:
 > ```python
 > cors_origins: list[str] = ["http://localhost:3000", "http://localhost:80", "http://localhost:3200"]
 > ```
@@ -107,7 +116,6 @@ Expose the ports you need. For a dev server, at minimum:
 sudo ufw allow 22/tcp      # SSH
 sudo ufw allow 3200/tcp    # Frontend (React app)
 sudo ufw allow 8000/tcp    # Backend API (FastAPI)
-sudo ufw allow 5000/tcp    # Scrapper API (optional, direct access)
 sudo ufw enable
 ```
 
@@ -115,25 +123,20 @@ For production, put these behind nginx + HTTPS (see §6).
 
 ---
 
-## 4) Build & Start the Stacks
+## 4) Build & Start the Sales App
 
-**Order matters:** scrapper first (it creates the `scrapper_default` network), then sales app.
+The sales app is a single, self-contained stack:
 
 ```bash
-# 1) scrapper
-cd ~/scrapper
-docker compose up -d --build
-
-# 2) sales app (joins scrapper_default network)
 cd ~/sales-app
 docker compose up -d --build
 ```
 
-One-liner:
+One-liner (includes a Temporal dev server if you do not already have one —
+comment out the `temporal` line otherwise):
 
 ```bash
-cd ~/scrapper && docker compose up -d --build \
-&& cd ~/sales-app && docker compose up -d --build
+cd ~/sales-app && docker compose up -d --build
 ```
 
 > **Dev server port override:** If port 3000 is in use, override the frontend port:
@@ -161,20 +164,16 @@ Expected:
 
 | Container | Port | Status |
 |-----------|------|--------|
-| `scrapper-temporal-1` | 7233, 8233 | Up |
-| `scrapper-app-1` | 5000 | Up |
-| `scrapper-worker-1` | — | Up |
-| `scrapper-enricher-1` | — | Up |
 | `sales-app-frontend-1` | 3200 | Up |
 | `sales-app-backend-1` | 8000 | Up |
-| `sales-app-db-1` | 5434 | Up (healthy) |
+| `sales-app-lead_worker-1` | — | Up |
 | `sales-app-chromadb-1` | 8100 | Up |
 
 Health checks:
 
 ```bash
 curl -s http://localhost:8000/health        # backend: {"status":"ok"}
-curl -s http://localhost:5000/api/v1/companies/count  # scrapper API
+curl -s "http://localhost:8000/api/v1/companies/count"   # reads shared Pharma DB
 ```
 
 Open in browser: `http://<server-ip>:3200`
@@ -232,15 +231,13 @@ sudo certbot --nginx -d your-domain.com
 ### View logs
 
 ```bash
-docker logs -f scrapper-enricher-1      # lead research + campaign worker
+docker logs -f sales-app-lead_worker-1  # lead-research Temporal worker
 docker logs -f sales-app-backend-1      # backend API
-docker logs -f scrapper-app-1           # scrapper API
 ```
 
 ### Update after code changes
 
 ```bash
-cd ~/scrapper && git pull && docker compose up -d --build
 cd ~/sales-app && git pull && docker compose up -d --build
 ```
 
@@ -248,27 +245,25 @@ cd ~/sales-app && git pull && docker compose up -d --build
 
 ```bash
 cd ~/sales-app && docker compose down
-cd ~/scrapper   && docker compose down
 ```
 
-### Reset all data (including DB volumes)
+### Reset data (Chromadb volume only — the Pharma DB is remote/shared)
 
 ```bash
 cd ~/sales-app && docker compose down -v
-cd ~/scrapper   && docker compose down -v
 ```
 
 ### Restart a single service
 
 ```bash
-docker compose restart scrapper-enricher-1
+docker compose restart sales-app-lead_worker-1
 ```
 
-### Check worker is running (lead research / campaigns)
+### Check the lead worker is running
 
 ```bash
-docker logs scrapper-enricher-1 | tail -5
-# Should show: "Starting Temporal Worker for Enrichment on 'enrichment-task-queue'..."
+docker logs sales-app-lead_worker-1 | tail -5
+# Should show: "Starting sales-app LeadResearch Temporal Worker on 'sales-lead-task-queue'..."
 ```
 
 ---
@@ -277,9 +272,10 @@ docker logs scrapper-enricher-1 | tail -5
 
 | Symptom | Fix |
 |-----|-----|
-| `network scrapper_default not found` | Start scrapper stack first |
-| `connection to server at ... failed: Connection timed out` | DB host not reachable from container — check `DATABASE_URL` and firewall |
-| `sales-app-backend-1` keeps restarting | DB not healthy yet — `db` container healthcheck gates backend; wait 30s |
-| Worker won't connect to Temporal | Check `TEMPORAL_HOST=temporal:7233` in `.env` |
+| `connection to server at ... failed: Connection timed out` | DB host not reachable from container — check `DATABASE_URL` and firewall to the Pharma host |
+| `sales-app-backend-1` keeps restarting | Wait for `chromadb` to start — backend depends on it |
+| UI loads but no signal/company data | `DATABASE_URL` wrong, or the Pharma DB has no scraped data yet (`sdr_data` empty) |
+| Lead research never completes | Temporal server down, or `sales-app-lead_worker-1` not running; check `TEMPORAL_HOST` / `TEMPORAL_TASK_QUEUE` |
+| Worker won't connect to Temporal | Inside containers it must reach `host.docker.internal:7233` (Linux uses `extra_hosts: host.docker.internal:host-gateway` in compose) |
 | Build cache bloated | `docker builder prune -af` |
 | Out of disk | `docker system prune -af --volumes` (careful — removes unused data) |

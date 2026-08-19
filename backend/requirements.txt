@@ -3,6 +3,7 @@ uvicorn[standard]
 openpyxl
 sqlalchemy[asyncio]
 asyncpg
+psycopg2-binary
 pydantic
 pydantic-settings
 python-jose[cryptography]
@@ -10,4 +11,9 @@ passlib[bcrypt]
 httpx
 groq
 alembic
+temporalio
 chromadb
+tavily-python
+playwright==1.62.0
+beautifulsoup4
+python-dotenv

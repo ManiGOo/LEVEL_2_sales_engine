@@ -3,7 +3,7 @@ import re
 import httpx
 from groq import AsyncGroq, BadRequestError
 from app.config import get_settings
-from app.core.mcp_client import mcp_client
+from app.scraper.tools import list_tools, call_tool
 from app.services.memory_service import store_message, retrieve_context
 
 settings = get_settings()
@@ -109,9 +109,9 @@ async def stream_chat(message: str, history: list[dict] = None, user_id: str = "
     if memory_context:
         system_content += f"\n\n### Relevant Past Conversations:\n{memory_context}"
 
-    # Get available tools from Sentinel MCP
+    # Get available tools (served locally from the shared database)
     try:
-        tools = await mcp_client.list_tools()
+        tools = list_tools()
         tool_schemas = build_tool_schemas(tools)
     except Exception:
         tool_schemas = []
@@ -193,7 +193,7 @@ async def stream_chat(message: str, history: list[dict] = None, user_id: str = "
                     yield {"type": "tool_call", "id": tc.id, "name": fn.name, "arguments": args}
 
                     try:
-                        result = await mcp_client.call_tool(fn.name, args)
+                        result = call_tool(fn.name, args)
                         result_str = json.dumps(result, default=str)[:4000]
                     except Exception as e:
                         result_str = json.dumps({"error": str(e)})

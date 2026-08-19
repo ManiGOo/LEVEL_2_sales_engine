@@ -9,8 +9,12 @@ engine = create_async_engine(settings.database_url, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
+# All sales-app-owned tables live in the `sales_app` schema of the shared DB.
 class Base(DeclarativeBase):
     pass
+
+
+Base.metadata.schema = "sales_app"
 
 
 async def get_db():
@@ -19,6 +23,14 @@ async def get_db():
             yield session
         finally:
             await session.close()
+
+
+async def init_sales_app_schema() -> None:
+    """Create the sales_app schema (if missing) and ensure all owned tables
+    exist. The scraper-owned `sdr_data` tables are managed by the scraper."""
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS sales_app"))
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def ensure_campaign_lead_schema() -> None:
@@ -42,10 +54,10 @@ async def ensure_campaign_lead_schema() -> None:
 
     async with engine.begin() as conn:
         def migrate(sync_conn):
-            existing = {c["name"] for c in inspect(sync_conn).get_columns("campaign_leads")}
+            existing = {c["name"] for c in inspect(sync_conn).get_columns("campaign_leads", schema="sales_app")}
             for name, definition in columns.items():
                 if name not in existing:
-                    sync_conn.execute(text(f"ALTER TABLE campaign_leads ADD COLUMN {name} {definition}"))
+                    sync_conn.execute(text(f"ALTER TABLE sales_app.campaign_leads ADD COLUMN {name} {definition}"))
         await conn.run_sync(migrate)
 
 
@@ -62,10 +74,10 @@ async def ensure_campaign_schema() -> None:
     }
     async with engine.begin() as conn:
         def migrate(sync_conn):
-            existing = {c["name"] for c in inspect(sync_conn).get_columns("campaigns")}
+            existing = {c["name"] for c in inspect(sync_conn).get_columns("campaigns", schema="sales_app")}
             for name, definition in columns.items():
                 if name not in existing:
-                    sync_conn.execute(text(f"ALTER TABLE campaigns ADD COLUMN {name} {definition}"))
+                    sync_conn.execute(text(f"ALTER TABLE sales_app.campaigns ADD COLUMN {name} {definition}"))
         await conn.run_sync(migrate)
 
 
@@ -78,8 +90,8 @@ async def ensure_campaign_activity_schema() -> None:
     }
     async with engine.begin() as conn:
         def migrate(sync_conn):
-            existing = {c["name"] for c in inspect(sync_conn).get_columns("campaign_activities")}
+            existing = {c["name"] for c in inspect(sync_conn).get_columns("campaign_activities", schema="sales_app")}
             for name, definition in columns.items():
                 if name not in existing:
-                    sync_conn.execute(text(f"ALTER TABLE campaign_activities ADD COLUMN {name} {definition}"))
+                    sync_conn.execute(text(f"ALTER TABLE sales_app.campaign_activities ADD COLUMN {name} {definition}"))
         await conn.run_sync(migrate)

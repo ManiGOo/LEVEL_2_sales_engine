@@ -1,7 +1,8 @@
 """Excel report generator for the sales team.
 
-Consumes company + signal data from the Sentinel (scrapper) microservice via
-``sentinel_service`` and renders it into a styled two-sheet workbook:
+Reads company + signal data from the shared Pharma DB (scraped data in the
+``sdr_data`` schema, produced by the Sentinel scraper) via ``sentinel_service``
+and renders it into a styled two-sheet workbook:
 
 - **General List**: one row per company — Company, Location, NSQ Alert, Rating,
   derived Status & Description, plus the full detailed scoring breakdown
@@ -10,8 +11,8 @@ Consumes company + signal data from the Sentinel (scrapper) microservice via
   NSQ record with drug / batch / reason / reporting month and the same detailed
   scoring.
 
-This module only converts data into an .xlsx; all data flows in from the
-existing Sentinel HTTP endpoints.
+This module only converts data into an .xlsx; all data is read directly from the
+shared database — no calls to the scraper.
 """
 
 import io
@@ -28,7 +29,8 @@ from app.services import sentinel_service
 # Location extraction
 # ---------------------------------------------------------------------------
 # Address markers that appear right after a trading name inside the raw CDSCO
-# manufacturer string (mirrors the scrapper's company_names.ADDRESS_MARKERS).
+# manufacturer string (mirrors the scraper's company_names.ADDRESS_MARKERS,
+# now available locally in app.scraper.names).
 _ADDRESS_MARKERS = re.compile(
     r"(?i)"
     r"\bplot\s*(?:no\.?|no)?\s*:?|"

@@ -1,37 +1,42 @@
 # Setup Guide — Cloning and Running the Sales App (Level 2) from Scratch
 
-The **Level 2 sales engine** sits on top of the Level 1 scrapper ("AIVOA
-Sentinel"). Follow the steps **in order**.
+The **Level 2 sales engine** consumes the pharma intelligence data produced by
+the Level 1 scraper ("AIVOA Sentinel"), but it is **fully independent of the
+scraper at runtime**: it never calls the scraper over HTTP/MCP, and it runs its
+own Temporal worker for lead research.
 
-> **TL;DR:** the sales app is not standalone — it needs the **Level 1
-> (scrapper) stack running first**, because it consumes the Sentinel API + MCP
-> over a shared Docker network. See §2.
+> **TL;DR:** the sales app only needs (1) the **shared remote Pharma Postgres
+> DB** (it reads scraped data from `sdr_data` and stores its own tables in
+> `sales_app`) and (2) a **Temporal server** for lead research. It does **not**
+> depend on the scraper process/stack for anything.
 
 ---
 
 ## 0. What this project is
 
-A full-stack **sales / CRM UI** over the pharma intelligence data produced by
-Level 1. It provides:
+A full-stack **sales / CRM UI** over the pharma intelligence data. It provides:
 
 - **React 19 + Vite + Tailwind** frontend (sales-oriented lead UI, confidence
   badges, campaigns, chat).
-- **FastAPI backend** that proxies/gathers Sentinel signals, runs Groq-based
-  chat, web-evidence, lead research, campaigns, reports.
-- **PostgreSQL 16** for app data (users, conversations, campaigns, …).
+- **FastAPI backend** that serves signals, runs Groq-based chat, web-evidence,
+  lead research, campaigns, and reports — all from the **shared database**
+  (no network proxy to Level 1).
 - **ChromaDB** vector store for conversation/company memory.
+- **Temporal `lead_worker`** that executes `LeadResearchWorkflow` (Tavily +
+  Groq + Playwright) and writes results to the shared DB.
 
-### Relationship to Level 1
+### External dependencies
 
 | What the sales app needs | Where it comes from | Env var |
 |---|---|---|
-| Signal/company/scraper data (REST) | Sentinel API → Level 1 `app` container, port `5000` | `SENTINEL_API_URL` |
-| MCP tools (`query_signals`, `trigger_*`, …) | Sentinel MCP streamable HTTP at `/mcp` | `SENTINEL_MCP_URL` |
+| Scraped regulatory data (read) | Shared Pharma Postgres — schema `sdr_data` | `DATABASE_URL` |
+| Sales-app tables (users, campaigns, …) | Same Pharma Postgres — schema `sales_app` (created on startup) | `DATABASE_URL` |
+| Lead-research execution | A Temporal server (dev server already runs one at `localhost:7233`); the sales-app **`lead_worker`** executes `LeadResearchWorkflow` on `sales-lead-task-queue` | `TEMPORAL_HOST` / `TEMPORAL_TASK_QUEUE` |
 | Groq LLM | Groq console key | `GROQ_API_KEY` |
+| Tavily web search | Tavily console key (used by lead-research activities) | `TAVILY_API_KEY` |
 
-The backend reaches Sentinel **through the external `scrapper_default` Docker
-network** — so Level 1 must be running and its `app` service must be up before
-the backend works end-to-end.
+The backend reaches the **Temporal server** (e.g. `localhost:7233`) and the
+**Pharma DB** over the network. No scraper service is contacted.
 
 ---
 
@@ -41,9 +46,12 @@ the backend works end-to-end.
 |---|---|---|
 | Frontend (nginx) | Docker compose `frontend` | `3000` (host) / `80` (container) |
 | Backend (FastAPI) | Docker compose `backend` (or venv) | `8000` |
-| PostgreSQL 16 | Docker compose `db` | `5434` (host) / `5432` (container) |
 | ChromaDB | Docker compose `chromadb` | `8100` (host) / `8000` (container) |
-| Sentinel API (Level 1) | scrapper stack, service `app` | `5000` (host) / `5000` (container) |
+| Temporal server | standalone (dev server already runs one; or `docker run temporalio/admin-tools temporal server start-dev`) | `7233` (host) / `8233` (UI) |
+| Shared Pharma Postgres | remote instance (no container in either stack) | `5432` |
+
+> There is **no Postgres container in the sales-app stack** — both the scraped
+> data and the app's own tables live in the shared remote Pharma DB.
 
 ---
 
@@ -54,31 +62,36 @@ The backend uses **pydantic-settings** (`backend/app/config.py`); it reads a
 is **`backend/.env`** (gitignored — never commit it).
 
 ```env
-# Postgres (the compose `db` service) — leave as-is for Docker
-DATABASE_URL=postgresql+asyncpg://sales:password@db:5432/sales_app
+# Shared Pharma Postgres — scraped data (sdr_data) + sales-app tables (sales_app)
+DATABASE_URL=postgresql+asyncpg://pharmabkp:aivoadma25@216.48.184.249:5432/pharma
 
 # JWT auth
 SECRET_KEY=change-me-to-a-random-64-char-string
 
-# Groq (LLM for chat / enrichment)
+# Groq (LLM for chat)
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
 GROQ_MODEL=openai/gpt-oss-120b
 
-# Level 1 Sentinel — reachable via the shared scrapper_default network
-SENTINEL_MCP_URL=http://app:5000/mcp
-SENTINEL_API_URL=http://app:5000
+# Temporal — sales-app starts LeadResearchWorkflow; its own lead_worker executes it
+TEMPORAL_HOST=localhost:7233
+TEMPORAL_TASK_QUEUE=sales-lead-task-queue
+
+# ChromaDB vector store
+CHROMA_HOST=chromadb
+CHROMA_PORT=8000
 ```
 
 ### Reference
 
 | Var | Default | Required? | Notes |
 |---|---|---|---|
-| `DATABASE_URL` | `postgresql+asyncpg://sales:password@db:5432/sales_app` | Yes | Must be `asyncpg`. For local dev, point at your local Postgres. |
+| `DATABASE_URL` | `postgresql+asyncpg://…@216.48.184.249:5432/pharma` | Yes | Must be `asyncpg`. Single shared DB; sales-app writes its own tables in the `sales_app` schema and reads scraped data from `sdr_data`. |
 | `SECRET_KEY` | `change-me-in-production` | Yes (prod) | Generate: `openssl rand -hex 32` |
 | `GROQ_API_KEY` | `""` | Yes (chat features) | <https://console.groq.com/keys> |
 | `GROQ_MODEL` | `openai/gpt-oss-120b` | No | Groq model id |
-| `SENTINEL_MCP_URL` | `http://sentinel:5000/mcp` | Yes (data) | `http://app:5000/mcp` inside compose |
-| `SENTINEL_API_URL` | `http://sentinel:5000` | Yes (data) | `http://app:5000` inside compose |
+| `TEMPORAL_HOST` | `localhost:7233` | Yes (lead research) | Inside compose it is overridden to `host.docker.internal:7233` so the worker/backend reach the host's Temporal server |
+| `TEMPORAL_TASK_QUEUE` | `sales-lead-task-queue` | Yes (lead research) | Task queue the sales-app `lead_worker` listens on |
+| `TAVILY_API_KEY` | `""` | Yes (lead research) | Tavily web-search key used by the research activities |
 | `CHROMA_HOST` / `CHROMA_PORT` | `chromadb` / `8000` | No | Chroma vector store |
 | `CORS_ORIGINS` | `["http://localhost:3000", ...]` | No | Comma list of allowed origins |
 
@@ -86,8 +99,9 @@ SENTINEL_API_URL=http://app:5000
 > `database_url` field automatically.
 
 **The database schema is created automatically** at backend startup — the
-FastAPI lifespan runs `Base.metadata.create_all` (see `backend/app/main.py`).
-No alembic migration step is needed.
+FastAPI lifespan runs `CREATE SCHEMA IF NOT EXISTS sales_app` +
+`Base.metadata.create_all` (see `backend/app/main.py`). The scraped `sdr_data`
+tables are owned by Level 1. No alembic migration step is needed.
 
 ---
 
@@ -96,14 +110,21 @@ No alembic migration step is needed.
 - **Git**
 - **Docker Engine + Docker Compose v2** (recommended path), OR
 - **Local dev path:** Python 3.12+, Node.js 22+, `pnpm` (via `corepack`)
-- **The Level 1 scrapper stack cloned and running** (see its `setup/README.md`)
+- **A reachable Temporal server** at `localhost:7233` (the dev server already
+  runs one). If you do not have one, start a dev Temporal server first:
 
-Clone Level 1 first (it creates the `scrapper_default` network):
+  ```bash
+  docker run -p 7233:7233 temporalio/admin-tools temporal server start-dev
+  ```
 
-```bash
-git clone git@github.com:ManiGOo/AIVOA-Sentinel-level-1.git scrapper
-cd scrapper && docker compose up -d --build   # wait for app on :5000
-```
+  > The containerized `backend`/`lead_worker` reach Temporal via
+  > `host.docker.internal:7233`, so the server must listen on a non-loopback
+  > interface (e.g. `temporal server start-dev --ip 0.0.0.0`), not just
+  > `127.0.0.1`. If it only binds loopback, run the backend/worker via local
+  > venv instead (they then use `localhost:7233` directly).
+
+The sales app does **not** require the Level 1 scraper stack at all — it reads
+the shared Pharma DB directly and runs its own `lead_worker`.
 
 ---
 
@@ -139,14 +160,18 @@ Compose details (`docker-compose.yml`):
 | Service | Build | Depends on | Notes |
 |---|---|---|---|
 | `frontend` | `./frontend` (node:22 → nginx) | `backend` | Serves built SPA on `:3000`; nginx proxies `/api/` → `backend:8000` |
-| `backend` | `./backend` (python:3.12-slim) | `db` healthy, `chromadb` | `uvicorn app.main:app --port 8000` |
-| `db` | `postgres:16-alpine` | — | Volume `pgdata`, host port `5434` |
+| `backend` | `./backend` (python:3.12-slim) | `chromadb` | `uvicorn app.main:app --port 8000`; `TEMPORAL_HOST=host.docker.internal:7233` |
+| `lead_worker` | `./backend` (`Dockerfile.lead_worker`, Playwright base) | `chromadb` | `python -m app.temporal.worker`; runs `LeadResearchWorkflow` on `sales-lead-task-queue` |
 | `chromadb` | `chromadb/chroma:latest` | — | Volume `chromadata`, host port `8100` |
 
-The backend joins **two networks**: its own default network and the external
-`scrapper_default` network (declared `external: true`) — that is how it reaches
-`http://app:5000`. **Level 1 must be up first**, otherwise
-`docker compose up` fails with `network scrapper_default not found`.
+The backend and `lead_worker` containers reach the **host's** Temporal server
+via `host.docker.internal:7233` (Linux needs the `extra_hosts:
+host.docker.internal:host-gateway` mapping, already present in the compose
+file). No external Docker network to the scraper is required.
+
+> There is no `db` service — the backend uses the shared remote Pharma DB from
+> §2, writing its own tables into the `sales_app` schema. The only external
+> dependencies are the Pharma DB and a Temporal server.
 
 ---
 
@@ -161,14 +186,14 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Point `.env` at a local Postgres instead of the compose `db` service
-(e.g. `postgresql+asyncpg://sales:password@localhost:5432/sales_app`) and at
-the locally running Sentinel (`SENTINEL_MCP_URL=http://localhost:5000/mcp`,
-`SENTINEL_API_URL=http://localhost:5000`). Make sure the database exists:
+Point `.env` at the shared Pharma DB and the Temporal server you are running
+(localhost `7233`, already present on the dev server, or run Temporal locally).
+No local `sales_app` database needs to be created — the sales-app
+creates its `sales_app` schema automatically on startup:
 
-```bash
-psql -U postgres -h localhost -c "CREATE USER sales WITH PASSWORD 'password';"
-psql -U postgres -h localhost -c "CREATE DATABASE sales_app OWNER sales;"
+```env
+DATABASE_URL=postgresql+asyncpg://pharmabkp:aivoadma25@216.48.184.249:5432/pharma
+TEMPORAL_HOST=localhost:7233
 ```
 
 Run:
@@ -195,16 +220,16 @@ locally on `8000`.
 ## 7. Verify
 
 ```bash
-# 1) Both stacks running
+# 1) Sales-app stack running (+ a Temporal server reachable on :7233)
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-#    scrapper-app-1 -> 5000 | sales-app-frontend-1 -> 3000
-#    sales-app-backend-1 -> 8000 | sales-app-db-1 -> 5434 | sales-app-chromadb-1 -> 8100
+#    sales-app-frontend-1 -> 3000 | sales-app-backend-1 -> 8000
+#    sales-app-lead_worker-1 | sales-app-chromadb-1 -> 8100
 
-# 2) Backend health (also proves DB reached the first time)
+# 2) Backend health (also proves DB reached on first startup)
 curl -s http://localhost:8000/health          # {"status":"ok"}
 
-# 3) Backend can reach Sentinel through scrapper_default
-curl -s http://localhost:5000/api/v1/config
+# 3) Backend can read the shared data directly (no API/MCP to the scraper)
+curl -s "http://localhost:8000/api/v1/companies/count"
 
 # 4) Frontend loads
 open http://localhost:3000
@@ -231,12 +256,12 @@ curl -s -X POST http://localhost:8000/api/v1/auth/login \
 | Router | Prefix | Purpose |
 |---|---|---|
 | auth | `/auth` | register, login, refresh, me |
-| chat | `/chat` | Groq-backed assistant chat |
-| signals | `/signals` | High-priority signals (from Sentinel) |
+| chat | `/chat` | Groq-backed assistant chat (local tools over the shared DB) |
+| signals | `/signals` | High-priority signals (from shared DB) |
 | companies | `/companies` | Company list / detail / ranking |
 | conversations | `/conversations` | Chat conversation history |
-| web_evidence | `/web_evidence` | Web evidence lookups |
-| leads | `/leads` | Lead research |
+| web_evidence | `/web_evidence` | Web evidence lookups (read-only) |
+| leads | `/leads` | Lead research (starts `LeadResearchWorkflow` on Temporal) + status |
 | reports | `/reports` | XLSX / reporting export |
 | campaigns | `/campaigns` | Campaign create / approve / start |
 
@@ -246,19 +271,19 @@ curl -s -X POST http://localhost:8000/api/v1/auth/login \
 
 | Symptom | Fix |
 |---|---|
-| `network scrapper_default not found` | Start the Level 1 scrapper stack first (`docker compose up -d --build`) |
-| Backend keeps restarting | Wait for `db` to become healthy — backend is gated on it (`depends_on: condition: service_healthy`) |
-| UI loads but no data | `SENTINEL_API_URL`/`SENTINEL_MCP_URL` wrong, or scrapper `app` not up. `curl http://app:5000/api/v1/companies/count` from the backend container |
-| `DATABASE_URL` connection refused (local dev) | Use a `postgresql+asyncpg://` URL and make sure the DB/user exist |
+| `network scrapper_default not found` | Removed — the sales-app no longer uses the scraper network; ensure `host.docker.internal` resolves (Linux compose uses `extra_hosts`) |
+| Backend keeps restarting | Wait for `chromadb` to start — backend depends on it |
+| UI loads but no signal/company data | `DATABASE_URL` wrong, or the Pharma DB has no scraped data yet (run scraping into `sdr_data`) |
+| `DATABASE_URL` connection refused | Use a `postgresql+asyncpg://` URL to the shared Pharma host; check network egress |
+| Lead research never completes | Temporal server down, or the sales-app `lead_worker` not running; check `TEMPORAL_HOST` and `TEMPORAL_TASK_QUEUE` |
 | Login fails | Register the user first (`/auth/register`); no seed user exists |
 | Frontend proxy 502 (local dev) | Backend must run on `localhost:8000` for the Vite proxy |
-| MCP calls time out | Sentinel `/mcp` is only mounted when Level 1 runs with `ENABLE_MCP=1` (default) |
 
 ---
 
 ## 10. More docs
 
-- **`HOW_TO_START.md`** — quick Docker Compose start/stop for both stacks.
+- **`HOW_TO_START.md`** — quick Docker Compose start/stop for the sales app.
 - **`DEV_SERVER_SETUP.md`** — full remote dev-server provisioning
   (Docker, env files, firewall, nginx + HTTPS, operations).
 - **`docs/adr-001-tavily-vs-groq-compound.md`** — why Tavily-direct won over

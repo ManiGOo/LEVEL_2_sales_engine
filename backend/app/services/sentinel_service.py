@@ -1,106 +1,46 @@
-import httpx
-from app.config import get_settings
+"""Local service layer for scraped regulatory data.
 
-settings = get_settings()
+Replaces the old ``sentinel_service`` HTTP client: instead of calling the
+scraper over the network, these functions query the shared database directly
+through ``app.scraper.queries``.
+"""
+from typing import Optional
+
+from app.scraper import queries
 
 
 async def get_signals(**params) -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/signals/high-priority", params=params)
-        resp.raise_for_status()
-        return resp.json()
+    # The scraper's signals endpoint defaults min_score to 0; the sales-app used
+    # `page`/`page_size`/`q`/`year`/`event_type`/`group_by` as query params.
+    return queries.query_signals(
+        min_score=params.get("min_score", 0),
+        year=params.get("year"),
+        page=params.get("page", 1),
+        page_size=params.get("page_size", 30),
+        q=params.get("q"),
+        event_type=params.get("event_type"),
+        is_paper=params.get("is_paper"),
+        paper_class=params.get("paper_class"),
+        group_by=params.get("group_by"),
+        rule_96=params.get("rule_96", False),
+        sub_rule_7=params.get("sub_rule_7", False),
+        schedule_h2=params.get("schedule_h2", False),
+        schedule_m_gap=params.get("schedule_m_gap"),
+    )
 
 
 async def get_companies(page: int = 1, page_size: int = 10, q: str = None) -> dict:
-    params = {"page": page, "page_size": page_size}
-    if q:
-        params["q"] = q
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/companies/ranking", params=params)
-        resp.raise_for_status()
-        return resp.json()
+    return queries.get_company_ranking(page=page, page_size=page_size, q=q)
 
 
 async def get_company_detail(slug: str) -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/companies/{slug}/signals")
-        resp.raise_for_status()
-        return resp.json()
+    return queries.get_company_signals(slug)
 
 
 async def get_web_evidence(event_id: str) -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/records/{event_id}/web-evidence")
-        resp.raise_for_status()
-        return resp.json()
-
-
-async def trigger_web_evidence_search(event_id: str) -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.post(
-            f"{settings.sentinel_api_url}/api/v1/web-evidence/search/{event_id}"
-        )
-        resp.raise_for_status()
-        return resp.json()
-
-
-async def get_enrichment_status(workflow_id: str) -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/enrichment/status/{workflow_id}")
-        resp.raise_for_status()
-        return resp.json()
-
-
-async def research_leads(company_keys: list, companies: list[dict] | None = None) -> dict:
-    payload = {"company_keys": company_keys}
-    if companies:
-        payload["companies"] = companies
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            f"{settings.sentinel_api_url}/api/v1/leads/research",
-            json=payload,
-        )
-        resp.raise_for_status()
-        return resp.json()
-
-
-async def get_lead_status() -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/leads/status")
-        resp.raise_for_status()
-        return resp.json()
-
-
-async def get_campaigns() -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/campaigns")
-        resp.raise_for_status()
-        return resp.json()
-
-
-async def get_campaign(campaign_id: str) -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/campaigns/{campaign_id}")
-        resp.raise_for_status()
-        return resp.json()
-
-
-async def create_campaign(data: dict) -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.post(f"{settings.sentinel_api_url}/api/v1/campaigns", json=data)
-        resp.raise_for_status()
-        return resp.json()
-
-
-async def start_campaign(campaign_id: str) -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.post(f"{settings.sentinel_api_url}/api/v1/campaigns/{campaign_id}/start")
-        resp.raise_for_status()
-        return resp.json()
+    return queries.get_web_evidence(event_id)
 
 
 async def get_lead_detail(company_key: str) -> dict:
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(f"{settings.sentinel_api_url}/api/v1/leads/{company_key}")
-        resp.raise_for_status()
-        return resp.json()
+    # The Leads page passes a company name/key; the local query resolves it.
+    return queries.get_lead(company_key)

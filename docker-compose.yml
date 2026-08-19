@@ -1,5 +1,5 @@
 services:
-  # ===== Sales App =====
+  # ===== Sales App (self-contained — no dependency on the scraper) =====
   frontend:
     build: ./frontend
     ports:
@@ -12,30 +12,16 @@ services:
     ports:
       - "8000:8000"
     env_file: ./backend/.env
-    networks:
-      - default
-      - scrapper_default
+    environment:
+      # Reach the Temporal server from inside the container. On the dev server
+      # Temporal already runs on the host (localhost:7233); for bare-metal dev
+      # the default `localhost:7233` from .env is used.
+      - TEMPORAL_HOST=host.docker.internal:7233
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      db:
-        condition: service_healthy
       chromadb:
         condition: service_started
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: sales_app
-      POSTGRES_USER: sales
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5434:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sales -d sales_app"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   chromadb:
     image: chromadb/chroma:latest
@@ -46,10 +32,22 @@ services:
     environment:
       - IS_PERSISTENT=TRUE
 
-networks:
-  scrapper_default:
-    external: true
+  # Dedicated Temporal worker that executes LeadResearchWorkflow entirely
+  # inside the sales-app (writes results to the shared Pharma DB). It connects
+  # to the Temporal server directly — no scraper involved.
+  lead_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.lead_worker
+    env_file: ./backend/.env
+    environment:
+      - TEMPORAL_HOST=host.docker.internal:7233
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      chromadb:
+        condition: service_started
 
 volumes:
-  pgdata:
   chromadata:

@@ -1,37 +1,24 @@
-# How to Start the Services
+# How to Start the Sales App
 
-Two **independent** Docker Compose stacks power this project. They must be
-started in order because the **sales app joins the `scrapper_default` network**
-that the scrapper stack creates.
+The sales app is **fully self-contained** — it does **not** depend on the scraper
+for anything. It talks only to:
 
-| Stack | Compose file | Working dir |
-|-------|--------------|-------------|
-| Scrapper (Temporal + API + workers) | `docker-compose.yml` | `/home/many-wallnut/Desktop/scrapper` |
-| Sales app (frontend/backend/db/chroma) | `docker-compose.yml` | `/home/many-wallnut/Desktop/sales-app` |
+- the **shared remote Pharma Postgres DB** (`pharma`, schema `sdr_data` for
+  scraped data + `sales_app` for the sales-app's own tables), and
+- a **Temporal server** (your dev server already runs one at `localhost:7233`).
 
-> **Prerequisites:** Docker Engine + Docker Compose v2.
+Scraped data is produced elsewhere (the scraper writes into the same Pharma
+DB), but the sales app never calls the scraper over the network — it reads the
+DB directly and runs its own `lead_worker` Temporal worker.
+
+> **Prerequisites:** Docker Engine + Docker Compose v2, and a Temporal server
+> reachable at `localhost:7233` (already present on the dev server). If you do
+> not have one, start a dev server first:
+> `docker run -p 7233:7233 temporalio/admin-tools temporal server start-dev`
 
 ---
 
-## 1) Start the scrapper containers (start first)
-
-```bash
-cd /home/many-wallnut/Desktop/scrapper
-docker compose up -d --build
-```
-
-Services / default ports:
-
-| Service    | Image / build            | Host port | Notes |
-|------------|--------------------------|-----------|-------|
-| `temporal` | `temporalio/admin-tools` | 7233, 8233 | Temporal dev server (workflow engine) |
-| `app`      | `Dockerfile` (app)       | 5000      | Scrapper API (`uvicorn main:app`) |
-| `worker`   | `Dockerfile.worker`      | —         | Runs Temporal workflows |
-| `enricher` | `Dockerfile.enricher`    | —         | Enrichment worker |
-
-Requires a `.env` in the `scrapper/` dir (already present): `scrapper/.env`.
-
-## 2) Start the sales app containers (start after scrapper)
+## Start the sales app
 
 ```bash
 cd /home/many-wallnut/Desktop/sales-app
@@ -43,46 +30,49 @@ Services / ports:
 | Service    | Host port | Notes |
 |------------|-----------|-------|
 | `frontend` | 3000      | React + Tailwind (`Dockerfile`) |
-| `backend`  | 8000      | FastAPI (`Dockerfile`); needs `backend/.env` (DB + `GROQ_API_KEY`) |
-| `db`       | 5434      | Postgres 16 (healthcheck gates `backend`) |
+| `backend`  | 8000      | FastAPI (`Dockerfile`); needs `backend/.env` (Pharma `DATABASE_URL` + `GROQ_API_KEY`) |
+| `lead_worker` | —      | Dedicated Temporal worker running `LeadResearchWorkflow` on `sales-lead-task-queue` (needs `TAVILY_API_KEY` + Temporal) |
 | `chromadb` | 8100      | Chroma vector store |
 
 Requires `backend/.env` (already present) — **keep it gitignored**, it holds the
-Groq key and DB credentials.
+Groq key, Tavily key, and the shared Pharma DB credentials.
 
-### One-liner for both
+### One-liner
 
 ```bash
-cd /home/many-wallnut/Desktop/scrapper  && docker compose up -d --build \
-&& cd /home/many-wallnut/Desktop/sales-app && docker compose up -d --build
+cd /home/many-wallnut/Desktop/sales-app && docker compose up -d --build
 ```
 
 ## Verify
 
 ```bash
 docker ps --format "table {{.Names}}\t{{.Ports}}"
-# frontend -> 3000, backend -> 8000, db -> 5434, chromadb -> 8100, app -> 5000
+# frontend -> 3000, backend -> 8000, lead_worker -> (internal), chromadb -> 8100
 ```
 
 Health check: `curl -s http://localhost:8000/health`
+
+End-to-end lead research:
+
+```bash
+# start a lead-research workflow (sales-app's own worker executes it)
+curl -s -X POST http://localhost:8000/api/v1/leads/research \
+  -H 'Content-Type: application/json' \
+  -d '{"company_keys":["rivpra formulation"],"companies":[]}'
+```
 
 ---
 
 ## Stop & clean
 
 ```bash
-# stop both stacks
 cd /home/many-wallnut/Desktop/sales-app && docker compose down -v
-cd /home/many-wallnut/Desktop/scrapper   && docker compose down -v
-
-# prune build cache + unused images (~4 GB reclaimed)
 docker image prune -af
 docker builder prune -af
 ```
 
 Notes:
-- `down -v` also removes named volumes (`pgdata`, `chromadata`) — this resets
-  the local Postgres and Chroma data. Omit `-v` to keep the data.
-- If you see `network scrapper_default is still in use`, stop the sales app
-  stack first, then the scrapper stack.
+- `down -v` removes the `chromadata` volume. The sales-app's Postgres data
+  lives in the shared remote Pharma DB, so it is **not** affected by stopping
+  this stack.
 - Env files are gitignored (`.gitignore` covers `.env`, `.env.*`); never commit them.
