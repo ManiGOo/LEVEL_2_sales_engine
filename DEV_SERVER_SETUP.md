@@ -50,9 +50,11 @@ docker --version          # 24+
 docker compose version    # 2.x
 ```
 
-> The sales app assumes a Temporal server is already reachable at
-> `localhost:7233` on the dev server. If it is not, start one first:
-> `docker run -p 7233:7233 temporalio/admin-tools temporal server start-dev`
+> The sales-app compose starts its own Temporal server (`temporal` service,
+> `temporal server start-dev --ip 0.0.0.0`) on the internal network, so no
+> separate Temporal is needed. If the dev server already runs a Temporal you
+> want to reuse, set `TEMPORAL_HOST=host.docker.internal:7233` and start only
+> `frontend backend lead_worker chromadb` (omit the `temporal` service).
 
 ---
 
@@ -125,15 +127,15 @@ For production, put these behind nginx + HTTPS (see §6).
 
 ## 4) Build & Start the Sales App
 
-The sales app is a single, self-contained stack:
+The sales app is a single, self-contained stack — the compose file includes a
+`frontend`, `backend`, `temporal`, `lead_worker`, and `chromadb`:
 
 ```bash
 cd ~/sales-app
 docker compose up -d --build
 ```
 
-One-liner (includes a Temporal dev server if you do not already have one —
-comment out the `temporal` line otherwise):
+One-liner:
 
 ```bash
 cd ~/sales-app && docker compose up -d --build

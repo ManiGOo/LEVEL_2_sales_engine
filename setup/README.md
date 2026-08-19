@@ -31,7 +31,7 @@ A full-stack **sales / CRM UI** over the pharma intelligence data. It provides:
 |---|---|---|
 | Scraped regulatory data (read) | Shared Pharma Postgres — schema `sdr_data` | `DATABASE_URL` |
 | Sales-app tables (users, campaigns, …) | Same Pharma Postgres — schema `sales_app` (created on startup) | `DATABASE_URL` |
-| Lead-research + web-evidence execution | A Temporal server (dev server already runs one at `localhost:7233`); the sales-app **`lead_worker`** executes `LeadResearchWorkflow` (lead research) and `WebEvidenceWorkflow` (web-evidence search) on `sales-lead-task-queue` | `TEMPORAL_HOST` / `TEMPORAL_TASK_QUEUE` |
+| Lead-research + web-evidence execution | The compose stack starts its own `temporal` service (`start-dev`); the sales-app **`lead_worker`** executes `LeadResearchWorkflow` (lead research) and `WebEvidenceWorkflow` (web-evidence search) on `sales-lead-task-queue` | `TEMPORAL_HOST` / `TEMPORAL_TASK_QUEUE` |
 | Groq LLM | Groq console key | `GROQ_API_KEY` |
 | Tavily web search | Tavily console key (used by lead-research activities) | `TAVILY_API_KEY` |
 
@@ -47,7 +47,7 @@ The backend reaches the **Temporal server** (e.g. `localhost:7233`) and the
 | Frontend (nginx) | Docker compose `frontend` | `3000` (host) / `80` (container) |
 | Backend (FastAPI) | Docker compose `backend` (or venv) | `8000` |
 | ChromaDB | Docker compose `chromadb` | `8100` (host) / `8000` (container) |
-| Temporal server | standalone (dev server already runs one; or `docker run temporalio/admin-tools temporal server start-dev`) | `7233` (host) / `8233` (UI) |
+| Temporal server | started by the sales-app compose (`temporal` service, `temporal server start-dev --ip 0.0.0.0`); internal `temporal:7233`, no host port | `7233` (internal) / `8233` (UI, not exposed) |
 | Shared Pharma Postgres | remote instance (no container in either stack) | `5432` |
 
 > There is **no Postgres container in the sales-app stack** — both the scraped
@@ -89,7 +89,7 @@ CHROMA_PORT=8000
 | `SECRET_KEY` | `change-me-in-production` | Yes (prod) | Generate: `openssl rand -hex 32` |
 | `GROQ_API_KEY` | `""` | Yes (chat features) | <https://console.groq.com/keys> |
 | `GROQ_MODEL` | `openai/gpt-oss-120b` | No | Groq model id |
-| `TEMPORAL_HOST` | `localhost:7233` | Yes (lead research) | Inside compose it is overridden to `host.docker.internal:7233` so the worker/backend reach the host's Temporal server |
+| `TEMPORAL_HOST` | `localhost:7233` | Yes (lead research) | Default in compose is `temporal:7233` (the in-compose Temporal service). Override via `TEMPORAL_HOST=host.docker.internal:7233` to use a Temporal you already run on the host |
 | `TEMPORAL_TASK_QUEUE` | `sales-lead-task-queue` | Yes (lead research) | Task queue the sales-app `lead_worker` listens on |
 | `TAVILY_API_KEY` | `""` | Yes (lead research) | Tavily web-search key used by the research activities |
 | `CHROMA_HOST` / `CHROMA_PORT` | `chromadb` / `8000` | No | Chroma vector store |
@@ -110,18 +110,10 @@ tables are owned by Level 1. No alembic migration step is needed.
 - **Git**
 - **Docker Engine + Docker Compose v2** (recommended path), OR
 - **Local dev path:** Python 3.12+, Node.js 22+, `pnpm` (via `corepack`)
-- **A reachable Temporal server** at `localhost:7233` (the dev server already
-  runs one). If you do not have one, start a dev Temporal server first:
-
-  ```bash
-  docker run -p 7233:7233 temporalio/admin-tools temporal server start-dev
-  ```
-
-  > The containerized `backend`/`lead_worker` reach Temporal via
-  > `host.docker.internal:7233`, so the server must listen on a non-loopback
-  > interface (e.g. `temporal server start-dev --ip 0.0.0.0`), not just
-  > `127.0.0.1`. If it only binds loopback, run the backend/worker via local
-  > venv instead (they then use `localhost:7233` directly).
+- **A Temporal server** — the sales-app compose starts one for you (`temporal`
+  service). If you already run a Temporal server on the host, set
+  `TEMPORAL_HOST=host.docker.internal:7233` and start only
+  `frontend backend lead_worker chromadb` (omit the `temporal` service).
 
 The sales app does **not** require the Level 1 scraper stack at all — it reads
 the shared Pharma DB directly and runs its own `lead_worker`.
@@ -160,18 +152,21 @@ Compose details (`docker-compose.yml`):
 | Service | Build | Depends on | Notes |
 |---|---|---|---|
 | `frontend` | `./frontend` (node:22 → nginx) | `backend` | Serves built SPA on `:3000`; nginx proxies `/api/` → `backend:8000` |
-| `backend` | `./backend` (python:3.12-slim) | `chromadb` | `uvicorn app.main:app --port 8000`; `TEMPORAL_HOST=host.docker.internal:7233` |
+| `backend` | `./backend` (python:3.12-slim) | `chromadb`, `temporal` | `uvicorn app.main:app --port 8000`; `TEMPORAL_HOST=${TEMPORAL_HOST:-temporal:7233}` |
 | `lead_worker` | `./backend` (`Dockerfile.lead_worker`, Playwright base) | `chromadb` | `python -m app.temporal.worker`; runs `LeadResearchWorkflow` (lead research) **and** `WebEvidenceWorkflow` (web-evidence search) on `sales-lead-task-queue` |
 | `chromadb` | `chromadb/chroma:latest` | — | Volume `chromadata`, host port `8100` |
 
-The backend and `lead_worker` containers reach the **host's** Temporal server
-via `host.docker.internal:7233` (Linux needs the `extra_hosts:
-host.docker.internal:host-gateway` mapping, already present in the compose
-file). No external Docker network to the scraper is required.
+The `backend` and `lead_worker` containers reach the **in-compose** Temporal
+server via `temporal:7233` (the `temporal` service, started with
+`temporal server start-dev --ip 0.0.0.0`). No external Docker network to the
+scraper is required. To use a Temporal you already run on the host instead, set
+`TEMPORAL_HOST=host.docker.internal:7233` and `docker network connect` is not
+needed (the `extra_hosts: host.docker.internal:host-gateway` mapping is already
+present in the compose file).
 
 > There is no `db` service — the backend uses the shared remote Pharma DB from
 > §2, writing its own tables into the `sales_app` schema. The only external
-> dependencies are the Pharma DB and a Temporal server.
+> dependency is the Pharma DB; Temporal is started by the stack.
 
 ---
 

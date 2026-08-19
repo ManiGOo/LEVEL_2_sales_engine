@@ -7,21 +7,36 @@ services:
     depends_on:
       - backend
 
+  # Temporal server (dev). Runs `temporal server start-dev` on the internal
+  # compose network so `backend`/`lead_worker` reach it at `temporal:7233`.
+  # No host port is published, so it never collides with a Temporal server you
+  # may already run on the host (e.g. on the dev server). To expose the Temporal
+  # UI, run `docker run -p 8233:8233 temporalio/admin-tools` separately.
+  temporal:
+    image: temporalio/admin-tools:latest
+    command: ["temporal", "server", "start-dev", "--ip", "0.0.0.0"]
+    healthcheck:
+      test: ["CMD-SHELL", "temporal operator namespace describe default --address 127.0.0.1:7233 >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     env_file: ./backend/.env
     environment:
-      # Reach the Temporal server from inside the container. On the dev server
-      # Temporal already runs on the host (localhost:7233); for bare-metal dev
-      # the default `localhost:7233` from .env is used.
-      - TEMPORAL_HOST=host.docker.internal:7233
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      # Reach the Temporal server. Defaults to the in-compose `temporal` service.
+      # On a host that already runs Temporal, override with:
+      #   TEMPORAL_HOST=host.docker.internal:7233 docker compose up -d --build
+      - TEMPORAL_HOST=${TEMPORAL_HOST:-temporal:7233}
     depends_on:
       chromadb:
         condition: service_started
+      temporal:
+        condition: service_healthy
 
   chromadb:
     image: chromadb/chroma:latest
@@ -32,22 +47,22 @@ services:
     environment:
       - IS_PERSISTENT=TRUE
 
-  # Dedicated Temporal worker that executes LeadResearchWorkflow entirely
-  # inside the sales-app (writes results to the shared Pharma DB). It connects
-  # to the Temporal server directly — no scraper involved.
+  # Dedicated Temporal worker that executes LeadResearchWorkflow + WebEvidenceWorkflow
+  # entirely inside the sales-app (writes results to the shared Pharma DB). It
+  # connects to the Temporal server directly — no scraper involved.
   lead_worker:
     build:
       context: ./backend
       dockerfile: Dockerfile.lead_worker
     env_file: ./backend/.env
     environment:
-      - TEMPORAL_HOST=host.docker.internal:7233
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - TEMPORAL_HOST=${TEMPORAL_HOST:-temporal:7233}
     restart: unless-stopped
     depends_on:
       chromadb:
         condition: service_started
+      temporal:
+        condition: service_healthy
 
 volumes:
   chromadata:
