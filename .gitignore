@@ -9,14 +9,11 @@ backend/dist/
 *.egg-info/
 build/
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.venv/
-venv/
+# Secrets — never commit
 .env
 .env.*
+.ssh_key
+.ssh_key.pub
 
 # Local data / databases
 *.db
