@@ -29,8 +29,19 @@ async def get_signals(**params) -> dict:
     )
 
 
-async def get_companies(page: int = 1, page_size: int = 10, q: str = None) -> dict:
-    return queries.get_company_ranking(page=page, page_size=page_size, q=q)
+async def get_companies(
+    page: int = 1,
+    page_size: int = 10,
+    q: str = None,
+    year: int = None,
+    state: str = None,
+    min_score: int = None,
+    max_score: int = None,
+) -> dict:
+    return queries.get_company_ranking(
+        page=page, page_size=page_size, q=q,
+        year=year, state=state, min_score=min_score, max_score=max_score,
+    )
 
 
 async def get_company_detail(slug: str) -> dict:

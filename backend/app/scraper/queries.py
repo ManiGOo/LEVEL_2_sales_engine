@@ -17,6 +17,7 @@ from app.scraper.helpers import MANDATE_START, recency_weight, repeat_offender_b
 from app.scraper.names import clean_company_name, PAREN
 from app.scraper.paper import assess_paper_category
 from app.scraper import scoring as _scoring
+from app.scraper.location import extract_location, extract_state
 
 
 # Re-export the grouping/scoring helpers the lead tools rely on.
@@ -169,8 +170,24 @@ def get_company_count() -> dict:
         db.close()
 
 
-def get_company_ranking(page: int = 1, page_size: int = 10, q: Optional[str] = None) -> dict:
-    """Company leaderboard ranked by highest-scoring signal."""
+def get_company_ranking(
+    page: int = 1,
+    page_size: int = 10,
+    q: Optional[str] = None,
+    year: Optional[int] = None,
+    state: Optional[str] = None,
+    min_score: Optional[int] = None,
+    max_score: Optional[int] = None,
+) -> dict:
+    """Company leaderboard ranked by highest-scoring signal.
+
+    Filters:
+      * ``year``    - only events dated in this year contribute to a company.
+      * ``state``   - company's plant state / Union Territory (derived from the
+                      CDSCO manufacturer address). The sentinel ``"__others__"``
+                      matches companies whose state could not be detected.
+      * ``min_score`` / ``max_score`` - bound the company's peak (highest) score.
+    """
     db = SessionLocal()
     try:
         page = max(page, 1)
@@ -180,7 +197,12 @@ def get_company_ranking(page: int = 1, page_size: int = 10, q: Optional[str] = N
         events = db.query(RegulatoryEvent).order_by(RegulatoryEvent.score.desc()).all()
         counts = _prior_event_counts(db)
         groups = {}
+        all_years: set[int] = set()
         for e in events:
+            if e.event_date:
+                all_years.add(e.event_date.year)
+            if year and (not e.event_date or e.event_date.year != year):
+                continue
             mfr = (e.raw_details or {}).get("manufacturer", "")
             gkey = _group_key(mfr)
             if not gkey:
@@ -194,9 +216,11 @@ def get_company_ranking(page: int = 1, page_size: int = 10, q: Optional[str] = N
                     continue
             g = groups.get(gkey)
             if g is None:
+                name = clean_company_name(PAREN.sub("", mfr)) or gkey
+                location = extract_location(mfr, name)
                 g = {
                     "gkey": gkey,
-                    "name": clean_company_name(PAREN.sub("", mfr)) or gkey,
+                    "name": name,
                     "slug": _slug(gkey),
                     "score": 0,
                     "peak": None,
@@ -206,6 +230,8 @@ def get_company_ranking(page: int = 1, page_size: int = 10, q: Optional[str] = N
                     "reg_set": set(),
                     "paper": 0,
                     "mandates": 0,
+                    "location": location,
+                    "state": extract_state(location, mfr),
                 }
                 groups[gkey] = g
             g["event_count"] += 1
@@ -235,7 +261,26 @@ def get_company_ranking(page: int = 1, page_size: int = 10, q: Optional[str] = N
             "regulators": sorted(g["reg_set"]),
             "paper_count": g["paper"],
             "mandate_count": g["mandates"],
+            "location": g["location"],
+            "state": g["state"],
         } for g in groups.values()]
+
+        # Available filter options (state list reflects the year-filtered set).
+        available_states = sorted({g["state"] for g in groups.values() if g["state"]})
+        available_years = sorted(all_years, reverse=True)
+        has_others = any(g["state"] == "" for g in groups.values())
+
+        # Geographic + score filters (after grouping so the peak score is known).
+        if state:
+            if state == "__others__":
+                items = [it for it in items if not it["state"]]
+            else:
+                items = [it for it in items if it["state"] == state]
+        if min_score is not None:
+            items = [it for it in items if it["score"] >= min_score]
+        if max_score is not None:
+            items = [it for it in items if it["score"] <= max_score]
+
         items.sort(key=lambda x: (-x["score"], x["name"].lower()))
 
         total = len(items)
@@ -246,6 +291,9 @@ def get_company_ranking(page: int = 1, page_size: int = 10, q: Optional[str] = N
             "page": page,
             "page_size": page_size,
             "pages": (total + page_size - 1) // page_size,
+            "available_years": available_years,
+            "available_states": available_states,
+            "has_others": has_others,
         }
     finally:
         db.close()
@@ -313,31 +361,50 @@ def get_company_signals(slug: str) -> dict:
 
 
 def get_web_evidence(event_id: str) -> dict:
-    """Retrieve stored web evidence for a regulatory record."""
+    """Retrieve stored web evidence for a regulatory record.
+
+    Web-evidence is generated per *event* but belongs to the company, so we
+    return every evidence row for the company (grouped by manufacturer) — not
+    just the rows tied to this specific event_id. This keeps the panel correct
+    when a search was run on a different incident of the same company.
+    """
     db = SessionLocal()
     try:
-        evidence = db.query(WebEvidence).filter(
-            WebEvidence.event_id == event_id
-        ).order_by(WebEvidence.relevance_score.desc()).all()
+        event = db.query(RegulatoryEvent).filter(
+            RegulatoryEvent.event_id == event_id
+        ).first()
+        gkey = ""
+        if event:
+            mfr = (event.raw_details or {}).get("manufacturer", "")
+            gkey = _group_key(mfr)
 
-        return {
-            "event_id": event_id,
-            "evidence": [
-                {
-                    "id": str(e.id),
-                    "title": e.title,
-                    "url": e.url,
-                    "source": e.source,
-                    "published_date": str(e.published_date) if e.published_date else None,
-                    "snippet": e.snippet,
-                    "classification": e.classification or {},
-                    "relevance_score": e.relevance_score,
-                    "fetch_status": e.fetch_status,
-                    "fetched_at": str(e.fetched_at) if e.fetched_at else None,
-                }
-                for e in evidence
-            ],
-        }
+        if gkey:
+            rows = [
+                w for w in db.query(WebEvidence)
+                .order_by(WebEvidence.relevance_score.desc()).all()
+                if _group_key(w.mfr_key or "") == gkey
+            ]
+        else:
+            rows = db.query(WebEvidence).filter(
+                WebEvidence.event_id == event_id
+            ).order_by(WebEvidence.relevance_score.desc()).all()
+
+        evidence = [
+            {
+                "id": str(e.id),
+                "title": e.title,
+                "url": e.url,
+                "source": e.source,
+                "published_date": str(e.published_date) if e.published_date else None,
+                "snippet": e.snippet,
+                "classification": e.classification or {},
+                "relevance_score": e.relevance_score,
+                "fetch_status": e.fetch_status,
+                "fetched_at": str(e.fetched_at) if e.fetched_at else None,
+            }
+            for e in rows
+        ]
+        return {"event_id": event_id, "company_key": gkey, "evidence": evidence}
     finally:
         db.close()
 

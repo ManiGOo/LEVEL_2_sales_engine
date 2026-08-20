@@ -14,7 +14,7 @@ services:
   # UI, run `docker run -p 8233:8233 temporalio/admin-tools` separately.
   temporal:
     image: temporalio/admin-tools:latest
-    command: ["temporal", "server", "start-dev", "--ip", "0.0.0.0"]
+    command: ["temporal", "server", "start-dev", "--ip", "0.0.0.0", "--dynamic-config-value", "matching.enableWorkflowBuildIdPartitioning=false"]
     healthcheck:
       test: ["CMD-SHELL", "temporal operator namespace describe default --address 127.0.0.1:7233 >/dev/null 2>&1 || exit 1"]
       interval: 5s

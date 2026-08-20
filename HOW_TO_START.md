@@ -55,9 +55,23 @@ cd /home/many-wallnut/Desktop/sales-app && docker compose up -d --build
 > ```
 > (The in-compose `temporal` service is omitted in that case.)
 
-> **Temporal Web UI:** not exposed by default. To open it, run a separate
-> container: `docker run -p 8233:8233 temporalio/admin-tools` and visit
-> `http://localhost:8233`.
+> **Temporal Web UI:** not exposed by default. To open it, run the official UI
+> container on the compose network so it shows the sales app's real workflows:
+> ```bash
+> docker run -d --name temporal-web-ui --network sales-app_default \
+>   -p 8233:8080 \
+>   -e TEMPORAL_ADDRESS=temporal:7233 \
+>   -e TEMPORAL_UI_PORT=8080 \
+>   temporalio/ui:latest
+> ```
+> Then visit **http://localhost:8233**. The UI is connected to the in-compose
+> Temporal server (`temporal:7233`) and displays the sales app's workflows
+> (`sales-lead-task-queue`, `LeadResearchWorkflow`, `WebEvidenceWorkflow`).
+> Stop it with `docker rm -f temporal-web-ui`.
+>
+> (The plain `docker run -p 8233:8233 temporalio/admin-tools` variant from
+> earlier docs only starts an idling shell and does **not** serve the UI — use
+> `temporalio/ui` as above.)
 
 ## Verify
 

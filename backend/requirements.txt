@@ -18,4 +18,5 @@ playwright==1.62.0
 beautifulsoup4
 readability-lxml
 html2text
-python-dotenv
+ python-dotenv
+pypinindia

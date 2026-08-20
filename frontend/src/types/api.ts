@@ -55,6 +55,8 @@ export interface Company {
   regulators: string[]
   paper_count: number
   mandate_count: number
+  state: string
+  location: string
 }
 
 export interface CompanyPage {
@@ -63,6 +65,9 @@ export interface CompanyPage {
   page: number
   page_size: number
   pages: number
+  available_years: number[]
+  available_states: string[]
+  has_others: boolean
 }
 
 export interface CompanyDetail {

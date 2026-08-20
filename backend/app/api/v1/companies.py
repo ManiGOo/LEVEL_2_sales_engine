@@ -10,9 +10,16 @@ async def get_company_ranking(
     page: int = Query(1),
     page_size: int = Query(10),
     q: str = Query(None),
+    year: int = Query(None),
+    state: str = Query(None),
+    min_score: int = Query(None),
+    max_score: int = Query(None),
     user=Depends(get_current_user),
 ):
-    return await sentinel_service.get_companies(page=page, page_size=page_size, q=q)
+    return await sentinel_service.get_companies(
+        page=page, page_size=page_size, q=q,
+        year=year, state=state, min_score=min_score, max_score=max_score,
+    )
 
 
 @router.get("/")
@@ -20,9 +27,16 @@ async def get_companies(
     page: int = Query(1),
     page_size: int = Query(10),
     q: str = Query(None),
+    year: int = Query(None),
+    state: str = Query(None),
+    min_score: int = Query(None),
+    max_score: int = Query(None),
     user=Depends(get_current_user),
 ):
-    return await sentinel_service.get_companies(page=page, page_size=page_size, q=q)
+    return await sentinel_service.get_companies(
+        page=page, page_size=page_size, q=q,
+        year=year, state=state, min_score=min_score, max_score=max_score,
+    )
 
 
 @router.get("/{slug}")

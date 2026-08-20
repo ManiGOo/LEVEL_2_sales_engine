@@ -15,6 +15,9 @@ import {
   AlertCircle,
   Users,
   CheckCircle2,
+  Calendar,
+  MapPin,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Modal } from '@/components/ui/Modal'
@@ -26,6 +29,9 @@ import Pagination from '@/components/ui/Pagination'
 
 const PAGE_SIZE = 30
 const MAX_SELECT = 10
+
+const selectCls =
+  'bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-colors px-3 py-2'
 
 function rankBadge(rank: number) {
   if (rank === 1) return 'bg-gradient-to-br from-amber-300 to-yellow-600 text-slate-900'
@@ -233,6 +239,7 @@ function CompanyCard({
           <h3 className="text-sm font-semibold text-white truncate">{company.name}</h3>
           <p className="text-[11px] text-slate-500 mt-0.5 truncate">
             {company.event_count} signals · avg {company.avg_score}
+            {company.state && ` · ${company.state}`}
             {lead?.website && ' · website found'}
             {lead?.hiring && lead.hiring.length > 0 && ` · ${lead.hiring.length} jobs`}
           </p>
@@ -253,7 +260,19 @@ export default function LeadsPage() {
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
+  const [year, setYear] = useState('')
+  const [state, setState] = useState('')
+  const [minScore, setMinScore] = useState('')
+  const [maxScore, setMaxScore] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  function clearFilters() {
+    setYear('')
+    setState('')
+    setMinScore('')
+    setMaxScore('')
+    setPage(1)
+  }
   const [triggered, setTriggered] = useState(false)
   const [polling, setPolling] = useState(false)
   const [error, setError] = useState('')
@@ -264,14 +283,21 @@ export default function LeadsPage() {
   const completedToastRef = useRef(false)
 
   const { data } = useQuery({
-    queryKey: ['companies', 'ranking', page, search],
+    queryKey: ['companies', 'ranking', page, search, year, state, minScore, maxScore],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) })
       if (search) params.set('q', search)
+      if (year) params.set('year', year)
+      if (state) params.set('state', state)
+      if (minScore) params.set('min_score', minScore)
+      if (maxScore) params.set('max_score', maxScore)
       const res = await fetchApi(`/api/v1/companies/ranking?${params.toString()}`)
       return (await res.json()) as CompanyPage
     },
   })
+
+  const years = data?.available_years ?? []
+  const states = data?.available_states ?? []
 
   const selectedKeys = useMemo(() => [...selected], [selected])
 
@@ -435,8 +461,11 @@ export default function LeadsPage() {
       ) : (
       <>
 
-      <form onSubmit={submitSearch}>
-        <div className="relative max-w-xl">
+      <form
+        onSubmit={submitSearch}
+        className="glass rounded-xl p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3"
+      >
+        <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             value={q}
@@ -445,6 +474,76 @@ export default function LeadsPage() {
             className="w-full pl-9 pr-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-colors"
           />
         </div>
+
+        <div className="flex items-center gap-1.5 text-slate-400 w-full sm:w-auto">
+          <Calendar size={15} className="shrink-0" />
+          <select
+            value={year}
+            onChange={(e) => { setYear(e.target.value); setPage(1) }}
+            className={cn(selectCls, 'flex-1 sm:flex-none')}
+          >
+            <option value="">All years</option>
+            {years.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-slate-400 w-full sm:w-auto">
+          <MapPin size={15} className="shrink-0" />
+          <select
+            value={state}
+            onChange={(e) => { setState(e.target.value); setPage(1) }}
+            className={cn(selectCls, 'flex-1 sm:flex-none')}
+          >
+            <option value="">All states / UTs</option>
+            {states.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+            {data?.has_others && (
+              <option value="__others__">Others (location unknown)</option>
+            )}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-slate-400 w-full sm:w-auto">
+          <SlidersHorizontal size={15} className="shrink-0" />
+          <input
+            type="number"
+            min={0}
+            value={minScore}
+            onChange={(e) => { setMinScore(e.target.value); setPage(1) }}
+            placeholder="Min score"
+            className={cn(selectCls, 'flex-1 sm:flex-none sm:w-24 min-w-0')}
+          />
+          <span className="text-slate-600">–</span>
+          <input
+            type="number"
+            min={0}
+            value={maxScore}
+            onChange={(e) => { setMaxScore(e.target.value); setPage(1) }}
+            placeholder="Max score"
+            className={cn(selectCls, 'flex-1 sm:flex-none sm:w-24 min-w-0')}
+          />
+        </div>
+
+        {year || state || minScore || maxScore || search ? (
+          <button
+            type="button"
+            onClick={() => { clearFilters(); setSearch(''); setQ('') }}
+            className="px-3 py-2 rounded-lg text-sm text-slate-300 bg-slate-700/60 hover:bg-slate-700 transition-colors w-full sm:w-auto"
+          >
+            Clear
+          </button>
+        ) : null}
+
+        <button
+          type="submit"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition-colors text-sm font-semibold text-white w-full sm:w-auto"
+        >
+          <Search size={14} />
+          Search
+        </button>
       </form>
 
       {hasSelection && (

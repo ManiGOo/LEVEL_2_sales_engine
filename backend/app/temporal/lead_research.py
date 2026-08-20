@@ -1049,7 +1049,7 @@ def _search_and_classify(company_name: str, queries: list, category: str,
     if not collected:
         return []
     # Primary: deterministic heuristic (consistent)
-    from cognitive_engine import _heuristic_lead_relevance, _fuzzy_company_match as _fuzzy
+    from app.temporal.cognitive_engine import _heuristic_lead_relevance, _fuzzy_company_match as _fuzzy
     heuristic_scores = [_heuristic_lead_relevance(company_name, r, category) for r in collected]
     # Secondary: LLM for category matching signal (best-effort)
     try:

@@ -5,7 +5,7 @@ import type { CompanyPage } from '@/types/api'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ScoreGauge } from '@/components/ui/ScoreGauge'
-import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet, Search } from 'lucide-react'
+import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet, Search, MapPin, Calendar, SlidersHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { showToast } from '@/components/ui/toast'
 import SegmentedTabs from '@/components/general/SegmentedTabs'
@@ -21,6 +21,9 @@ function rankBadge(rank: number) {
   return 'bg-slate-700 text-slate-300'
 }
 
+const selectCls =
+  'bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-colors px-3 py-2'
+
 export default function CompaniesPage() {
   const { fetchApi } = useApi()
   const [tab, setTab] = useState('automated')
@@ -28,6 +31,19 @@ export default function CompaniesPage() {
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
   const [downloading, setDownloading] = useState(false)
+
+  const [year, setYear] = useState<string>('')
+  const [state, setState] = useState<string>('')
+  const [minScore, setMinScore] = useState<string>('')
+  const [maxScore, setMaxScore] = useState<string>('')
+
+  function clearFilters() {
+    setYear('')
+    setState('')
+    setMinScore('')
+    setMaxScore('')
+    setPage(1)
+  }
 
   async function downloadExcel() {
     if (downloading) return
@@ -58,14 +74,21 @@ export default function CompaniesPage() {
   }
 
   const { data, isFetching } = useQuery({
-    queryKey: ['companies', 'ranking', page, search],
+    queryKey: ['companies', 'ranking', page, search, year, state, minScore, maxScore],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) })
       if (search) params.set('q', search)
+      if (year) params.set('year', year)
+      if (state) params.set('state', state)
+      if (minScore) params.set('min_score', minScore)
+      if (maxScore) params.set('max_score', maxScore)
       const res = await fetchApi(`/api/v1/companies/ranking?${params.toString()}`)
       return (await res.json()) as CompanyPage
     },
   })
+
+  const years = data?.available_years ?? []
+  const states = data?.available_states ?? []
 
   const pages = Math.max(data?.pages || 1, 1)
 
@@ -128,8 +151,11 @@ export default function CompaniesPage() {
       ) : (
       <>
 
-      <form onSubmit={submitSearch}>
-        <div className="relative max-w-xl">
+      <form
+        onSubmit={submitSearch}
+        className="glass rounded-xl p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3"
+      >
+        <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             value={q}
@@ -138,6 +164,76 @@ export default function CompaniesPage() {
             className="w-full pl-9 pr-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-colors"
           />
         </div>
+
+        <div className="flex items-center gap-1.5 text-slate-400 w-full sm:w-auto">
+          <Calendar size={15} className="shrink-0" />
+          <select
+            value={year}
+            onChange={(e) => { setYear(e.target.value); setPage(1) }}
+            className={cn(selectCls, 'flex-1 sm:flex-none')}
+          >
+            <option value="">All years</option>
+            {years.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-slate-400 w-full sm:w-auto">
+          <MapPin size={15} className="shrink-0" />
+          <select
+            value={state}
+            onChange={(e) => { setState(e.target.value); setPage(1) }}
+            className={cn(selectCls, 'flex-1 sm:flex-none')}
+          >
+            <option value="">All states / UTs</option>
+            {states.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+            {data?.has_others && (
+              <option value="__others__">Others (location unknown)</option>
+            )}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-slate-400 w-full sm:w-auto">
+          <SlidersHorizontal size={15} className="shrink-0" />
+          <input
+            type="number"
+            min={0}
+            value={minScore}
+            onChange={(e) => { setMinScore(e.target.value); setPage(1) }}
+            placeholder="Min score"
+            className={cn(selectCls, 'flex-1 sm:flex-none sm:w-24 min-w-0')}
+          />
+          <span className="text-slate-600">–</span>
+          <input
+            type="number"
+            min={0}
+            value={maxScore}
+            onChange={(e) => { setMaxScore(e.target.value); setPage(1) }}
+            placeholder="Max score"
+            className={cn(selectCls, 'flex-1 sm:flex-none sm:w-24 min-w-0')}
+          />
+        </div>
+
+        {(year || state || minScore || maxScore || search) && (
+          <button
+            type="button"
+            onClick={() => { clearFilters(); setSearch(''); setQ('') }}
+            className="px-3 py-2 rounded-lg text-sm text-slate-300 bg-slate-700/60 hover:bg-slate-700 transition-colors w-full sm:w-auto"
+          >
+            Clear
+          </button>
+        )}
+
+        <button
+          type="submit"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition-colors text-sm font-semibold text-white w-full sm:w-auto"
+        >
+          <Search size={14} />
+          Search
+        </button>
       </form>
 
       {!isFetching && data && data.total > 0 && (
@@ -186,7 +282,14 @@ export default function CompaniesPage() {
                   <p className="text-[11px] text-slate-500 mt-0.5 truncate">
                     {company.event_count} signals · avg {company.avg_score}
                     {company.paper_count > 0 && ` · ${company.paper_count} paper-QMS`}
+                    {company.state && ` · ${company.state}`}
                   </p>
+                  {company.location && (
+                    <p className="text-[10px] text-slate-600 mt-0.5 truncate">
+                      <MapPin size={10} className="inline -mt-0.5 mr-0.5" />
+                      {company.location}
+                    </p>
+                  )}
                 </div>
                 {company.mandate_count > 0 && (
                   <span className="hidden sm:flex items-center gap-1 text-[11px] text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full shrink-0">

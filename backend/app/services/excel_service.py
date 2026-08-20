@@ -23,79 +23,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from app.scraper.location import extract_location
 from app.services import sentinel_service
-
-# ---------------------------------------------------------------------------
-# Location extraction
-# ---------------------------------------------------------------------------
-# Address markers that appear right after a trading name inside the raw CDSCO
-# manufacturer string (mirrors the scraper's company_names.ADDRESS_MARKERS,
-# now available locally in app.scraper.names).
-_ADDRESS_MARKERS = re.compile(
-    r"(?i)"
-    r"\bplot\s*(?:no\.?|no)?\s*:?|"
-    r"\bkhasra\s*(?:no\.?)?|"
-    r"\bsurvey\s*(?:no\.?)?|"
-    r"\bsurvery\s*(?:no\.?)?|"
-    r"\bk\.?\s*h\.?\s*no\.?|"
-    r"\bs\.?\s*(?:f\.?\s*)?no\.?|"
-    r"\bsector[- ]?\d|"
-    r"\bphase[- ]?[iv\d]|"
-    r"\bvill[e]?\b|"
-    r"\bvillage\b|"
-    r"\btehsil\b|"
-    r"\btaluk\b|"
-    r"\bdistt?\.?\b|"
-    r"\bn[h]-?\s*\d|"
-    r"\broad\b|"
-    r"\brd\.?\b|"
-    r"\bstreet\b|"
-    r"\b\#\s?\d|"
-    r"\b\d{6}\b|"
-    r"\b(?:gidc|sidcul|hpsidc|hsiidc|sidco|ida|epip|sldc)\b|"
-    r"\bindustrial\s*(?:area|estate|park|growth)\b|"
-    r"\bindl\.?\s*area\b|"
-    r"\bfactory\b|"
-    r"\bat\s*[:.]"
-)
-
-_PAREN = re.compile(r"\([^)]*\)")
-
-
-def _norm_text(raw: str) -> str:
-    if not raw:
-        return ""
-    return re.sub(r"\s+", " ", raw.replace("\n", ", ")).strip(" ,;:.-")
-
-
-def extract_location(mfr_raw: str, company_name: str = "") -> str:
-    """Best-effort location from the raw CDSCO manufacturer string.
-
-    The raw string embeds the plant address after the trading name, e.g.
-    ``"Hanuchem Laboratories, Plot No 13, Sector-5, Industrial Area,
-    Parwanoo, Distt. Solan (H.P)"`` -> ``"Plot No 13, Sector-5, Industrial
-    Area, Parwanoo, Distt. Solan (H.P)"``.
-    """
-    raw = _norm_text(mfr_raw)
-    if not raw:
-        return ""
-
-    # Prefer cutting right after the cleaned company name (exact anchor).
-    name = _norm_text(company_name)
-    if name:
-        m = re.search(re.escape(name), raw, re.IGNORECASE)
-        if m:
-            tail = raw[m.end():].lstrip(" ,;:.-")
-            if tail:
-                return re.sub(r"\s+", " ", tail).strip(" ,;:.-")
-
-    # Fallback: cut at the first address marker.
-    m = _ADDRESS_MARKERS.search(raw)
-    if m:
-        tail = raw[m.start():].strip(" ,;:.-")
-        if tail:
-            return re.sub(r"\s+", " ", tail).strip(" ,;:.-")
-    return ""
 
 
 # ---------------------------------------------------------------------------
