@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.api.v1.router import router as v1_router
 from contextlib import asynccontextmanager
-from app.database import engine, init_sales_app_schema, ensure_campaign_lead_schema, ensure_campaign_schema, ensure_campaign_activity_schema
+from app.database import engine, init_sales_app_schema, ensure_campaign_lead_schema, ensure_campaign_schema, ensure_campaign_activity_schema, ensure_account_workflow_schema, ensure_quotation_schema
 
 settings = get_settings()
 
@@ -15,6 +15,8 @@ async def lifespan(app: FastAPI):
     await ensure_campaign_lead_schema()
     await ensure_campaign_schema()
     await ensure_campaign_activity_schema()
+    await ensure_account_workflow_schema()
+    await ensure_quotation_schema()
     yield
     await engine.dispose()
 

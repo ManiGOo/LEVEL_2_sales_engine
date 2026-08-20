@@ -80,6 +80,12 @@ async def get_general_company_by_key(db: AsyncSession, company_key: str) -> Gene
     return result.scalar_one_or_none()
 
 
+async def get_general_company_by_name(db: AsyncSession, name: str) -> GeneralCompany | None:
+    pattern = name.strip().lower()
+    result = await db.execute(select(GeneralCompany).where(func.lower(GeneralCompany.name) == pattern))
+    return result.scalar_one_or_none()
+
+
 async def list_general_companies(
     db: AsyncSession,
     page: int = 1,

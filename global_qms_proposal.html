@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commercial Proposal - AIVOA QMS Global Enterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        medical: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { -webkit-font-smoothing: antialiased; background-color: #f8fafc; }
+        .ai-badge {
+            @apply inline-flex items-center rounded-md bg-violet-50 px-2 py-0.5 text-[0.65rem] font-bold text-violet-700 ring-1 ring-inset ring-violet-700/20 uppercase tracking-wider ml-2 align-middle shadow-sm;
+        }
+        .page-shadow {
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+        }
+        
+        /* Editable Fields Styling */
+        span[contenteditable="true"] {
+            border-bottom: 1px dashed transparent;
+            transition: all 0.2s ease;
+            min-width: 20px;
+            display: inline-block;
+        }
+        span[contenteditable="true"]:hover {
+            background-color: #fef9c3;
+            border-bottom: 1px dashed #ca8a04;
+            cursor: text;
+        }
+        span[contenteditable="true"]:focus {
+            background-color: #fef9c3;
+            border-bottom: 1px solid #ca8a04;
+            outline: none;
+        }
+        
+        /* Block Editable Fields */
+        div[contenteditable="true"], ul[contenteditable="true"] {
+            border: 1px dashed transparent;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+        }
+        div[contenteditable="true"]:hover, ul[contenteditable="true"]:hover {
+            background-color: #fef9c3;
+            border: 1px dashed #ca8a04;
+            cursor: text;
+        }
+        div[contenteditable="true"]:focus, ul[contenteditable="true"]:focus {
+            background-color: #fef9c3;
+            border: 1px solid #ca8a04;
+            outline: none;
+        }
+
+        /* Print Styles */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+            body { 
+                background-color: white; 
+                padding: 0; 
+                margin: 0;
+            }
+            /* Force background colors and images to print */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            .page-shadow { 
+                box-shadow: none; 
+                border: none; 
+                max-width: 100%; 
+                margin: 0;
+            }
+            .no-print { 
+                display: none !important; 
+            }
+            [contenteditable="true"] {
+                border: none !important;
+                background-color: transparent !important;
+            }
+            
+            /* Page Break Controls */
+            .page-break-before {
+                page-break-before: always;
+                break-before: page;
+            }
+            .avoid-page-break {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            /* Structural adjustments for printing */
+            .print-p-0 { padding: 0 !important; }
+            .print-m-0 { margin: 0 !important; }
+            .print-border-0 { border: none !important; }
+            
+            /* Ensure grid layouts don't break weirdly */
+            .grid { display: flex !important; flex-wrap: wrap !important; }
+            .grid-cols-2 > * { width: 48% !important; margin-right: 2% !important; }
+            .grid-cols-2 > *:nth-child(even) { margin-right: 0 !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 py-8 px-4 sm:px-6 lg:px-8">
+
+<!-- Editable Hint (Hidden on Print) -->
+<div class="max-w-4xl mx-auto mb-4 text-center text-sm font-medium text-amber-600 bg-amber-50 py-2 rounded-lg border border-amber-200 no-print shadow-sm">
+    💡 <strong>Interactive Global Proposal:</strong> Click on Client Details, Scope, Pricing, Dates, and Reference numbers to edit them directly.
+</div>
+
+<div class="max-w-4xl mx-auto bg-white rounded-none sm:rounded-xl page-shadow overflow-hidden border-0 sm:border border-gray-200">
+    
+    <!-- Top Header Banner -->
+    <div class="bg-medical-900 px-8 sm:px-10 py-8 text-white flex flex-col md:flex-row justify-between items-start md:items-center avoid-page-break print-p-0">
+        <div class="flex items-center space-x-4 w-full md:w-auto">
+            <!-- Embedded SVG Logo -->
+            <div class="bg-white p-2 rounded-lg shadow-sm h-16 w-16 flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="h-14 w-14">
+                    <path d="M33,35 L33,67 L45,67 L45,47 L67,47 L67,35 Z" fill="#1ea6ff" />
+                    <path d="M41.5,71.5 L58,71.5 L67,62.5 L67,50 L71.5,50 L71.5,67 L60.5,78 L33,78 L33,71.5 Z" fill="#1ea6ff" />
+                    <polygon points="56,35 67,24 67,39" fill="#1ea6ff" />
+                    <polygon points="33,63 71,25 78,32 40,70" fill="#1ea6ff" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-3xl font-black tracking-tight leading-none mb-1">AIVOA TECHNOLOGIES</h1>
+                <p class="text-medical-200 text-[0.65rem] font-bold tracking-[0.2em] uppercase">Enterprise AI Native QMS</p>
+            </div>
+        </div>
+        <div class="mt-6 md:mt-0 text-left md:text-right w-full md:w-auto">
+            <div class="text-sm font-bold text-medical-100 bg-medical-800/80 px-4 py-1.5 rounded border border-medical-700/50 inline-block backdrop-blur-sm shadow-inner mb-2">
+                Proposal Ref: <span contenteditable="true">AIVOA-QMS-2026-EXP01</span>
+            </div>
+            <div class="text-sm text-medical-200 font-medium">Date: <span contenteditable="true" class="text-white">August 20, 2026</span></div>
+            <div class="text-sm text-medical-200 font-medium">Validity: <span contenteditable="true" class="text-white">30 Days</span></div>
+        </div>
+    </div>
+
+    <!-- Padding Container for Document Body -->
+    <div class="p-8 sm:p-10 print-p-0">
+
+        <!-- Proposal Subject & Prepared For -->
+        <div class="flex flex-col md:flex-row gap-8 mb-12 avoid-page-break w-full">
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm w-full md:w-[45%]">
+                <h3 class="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center">
+                    <span class="w-4 h-[2px] bg-slate-300 mr-2"></span> Prepared For
+                </h3>
+                <p class="font-black text-slate-900 text-xl tracking-tight mb-1" contenteditable="true">Dr. Sarah Jenkins</p>
+                <p class="text-medical-700 font-bold text-sm mb-3" contenteditable="true">Global Pharma Solutions LLC</p>
+                <div class="text-sm text-slate-600 font-medium space-y-1 bg-white p-3 rounded border border-slate-100">
+                    <p contenteditable="true">100 Innovation Blvd, Tech Park</p>
+                    <p contenteditable="true">Boston, MA 02110, United States</p>
+                    <p class="pt-2 text-slate-500 text-xs" contenteditable="true">s.jenkins@globalpharma.com | +1 (555) 123-4567</p>
+                </div>
+            </div>
+            <div class="flex flex-col justify-center w-full md:w-[55%]">
+                <h3 class="text-[0.65rem] font-black text-medical-600 uppercase tracking-widest mb-2 flex items-center">
+                    <span class="w-4 h-[2px] bg-medical-600 mr-2"></span> Proposal Subject
+                </h3>
+                <h2 class="text-3xl font-black text-slate-900 leading-tight mb-2">
+                    AIVOA QMS Enterprise Suite <br>
+                    <span class="text-xl text-medical-600 font-extrabold tracking-tight">(Global Compliance Edition)</span>
+                </h2>
+                <p class="text-slate-600 text-sm leading-relaxed font-medium bg-medical-50/50 p-4 rounded-lg border-l-4 border-medical-600">
+                    Cloud SaaS Licensing & Implementation Proposal engineered explicitly for US FDA & EMA regulatory adherence. Includes comprehensive ALCOA+ data integrity, GAMP 5 validation, and AI-driven quality assurance.
+                </p>
+            </div>
+        </div>
+
+        <!-- 1. Executive Overview -->
+        <div class="mb-12 avoid-page-break">
+            <!-- Professional Section Heading -->
+            <div class="flex items-center gap-4 mb-6">
+                <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 text-white font-black text-2xl shadow-lg shadow-slate-900/20 shrink-0 border border-slate-700">01</div>
+                <div class="flex-1 border-b-2 border-slate-200 pb-2">
+                    <h2 class="text-2xl font-black text-slate-900 tracking-tight uppercase">Executive Overview</h2>
+                </div>
+            </div>
+            
+            <div class="bg-slate-900 rounded-xl p-1 shadow-lg avoid-page-break">
+                <div class="bg-white rounded-lg p-6 sm:p-8 h-full">
+                    <h3 class="text-xl font-black text-medical-900 mb-4 tracking-tight" contenteditable="true">Architected for Global Regulatory Harmonization & Zero-Defect Data Integrity</h3>
+                    <div contenteditable="true" class="outline-none">
+                        <p class="text-slate-700 leading-relaxed text-sm font-medium mb-4">
+                            To succeed in highly regulated export markets (US, EU, UK), organizations must demonstrate impenetrable data governance and proactive quality control. The <strong>AIVOA QMS Global Enterprise Suite</strong> is precision-engineered to meet the strict demands of <strong>US FDA 21 CFR Part 11, EU Annex 11, and ICH Q10 Guidelines</strong>.
+                        </p>
+                        <p class="text-slate-700 leading-relaxed text-sm font-medium">
+                            By natively embedding ALCOA+ principles and utilizing proprietary AI, the platform eliminates compliance blind spots, guarantees immutable audit trails, and provides real-time oversight for MHRA, FDA, and EMA inspections. This is not just a digitizer; it is a continuously audit-ready compliance engine.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Functional Scope -->
+        <div class="mb-12">
+            <!-- Professional Section Heading -->
+            <div class="flex items-center gap-4 mb-8">
+                <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 text-white font-black text-2xl shadow-lg shadow-slate-900/20 shrink-0 border border-slate-700">02</div>
+                <div class="flex-1 border-b-2 border-slate-200 pb-2">
+                    <h2 class="text-2xl font-black text-slate-900 tracking-tight uppercase">Functional Scope & Architecture</h2>
+                    <p class="text-sm font-bold text-slate-500 mt-1 uppercase tracking-wider">Enterprise Modules (US FDA / EU GMP Edition)</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                
+                <!-- Compliance & Validation (Put first for Export) -->
+                <div class="border-2 border-medical-100 rounded-xl p-5 hover:border-medical-400 transition-colors bg-gradient-to-b from-medical-50 to-white shadow-sm avoid-page-break">
+                    <div class="flex items-center mb-4 pb-3 border-b border-medical-100">
+                        <div class="bg-medical-600 text-white p-2 rounded-lg mr-3 shadow-md">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                        </div>
+                        <h3 class="font-black text-slate-800 text-lg">Global Compliance & CSV</h3>
+                    </div>
+                    <ul class="text-sm text-slate-700 font-medium space-y-2.5 ml-1">
+                        <li class="flex items-start"><span class="text-medical-600 font-bold mr-2 mt-0.5">✔</span> Native 21 CFR Part 11 & EU Annex 11 E-Signatures</li>
+                        <li class="flex items-start"><span class="text-medical-600 font-bold mr-2 mt-0.5">✔</span> Immutable Field-Level Audit Trails (ALCOA+)</li>
+                        <li class="flex items-start"><span class="text-medical-600 font-bold mr-2 mt-0.5">✔</span> GAMP 5 Category 4 CSV Validation Package</li>
+                        <li class="flex items-start"><span class="text-medical-600 font-bold mr-2 mt-0.5">✔</span> <span>AI Compliance Copilot (SOP/Guideline Chat) <span class="ai-badge">✨ AI</span></span></li>
+                    </ul>
+                </div>
+
+                <!-- Quality Events -->
+                <div class="border border-gray-200 rounded-xl p-5 hover:border-slate-300 transition-colors bg-white shadow-sm avoid-page-break">
+                    <div class="flex items-center mb-4 pb-3 border-b border-slate-100">
+                        <div class="bg-slate-100 text-slate-700 p-2 rounded-lg mr-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        </div>
+                        <h3 class="font-black text-slate-800 text-lg">eQMS (Quality Events)</h3>
+                    </div>
+                    <ul class="text-sm text-slate-600 font-medium space-y-2.5 ml-1">
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Global CAPA, Deviations & RCA Workflows</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> OOS/OOT & Market Complaint Investigations</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> ICH Q9 Risk Assessment Framework</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> <span>End-to-End Investigation Auto-Drafting <span class="ai-badge">✨ AI</span></span></li>
+                    </ul>
+                </div>
+
+                <!-- Document Management -->
+                <div class="border border-gray-200 rounded-xl p-5 hover:border-slate-300 transition-colors bg-white shadow-sm avoid-page-break">
+                    <div class="flex items-center mb-4 pb-3 border-b border-slate-100">
+                        <div class="bg-slate-100 text-slate-700 p-2 rounded-lg mr-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        </div>
+                        <h3 class="font-black text-slate-800 text-lg">Global DMS Architecture</h3>
+                    </div>
+                    <ul class="text-sm text-slate-600 font-medium space-y-2.5 ml-1">
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Multi-Site Document Architecture & Routing</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Automated Periodic Review & Expiry Tracking</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Controlled Copy Tracking & Watermarking</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> <span>Auto-Draft SOPs from Templates <span class="ai-badge">✨ AI</span></span></li>
+                    </ul>
+                </div>
+
+                <!-- Training & Competency (Vital for FDA) -->
+                <div class="border border-gray-200 rounded-xl p-5 hover:border-slate-300 transition-colors bg-white shadow-sm avoid-page-break">
+                    <div class="flex items-center mb-4 pb-3 border-b border-slate-100">
+                        <div class="bg-slate-100 text-slate-700 p-2 rounded-lg mr-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                        </div>
+                        <h3 class="font-black text-slate-800 text-lg">Training & Competency</h3>
+                    </div>
+                    <ul class="text-sm text-slate-600 font-medium space-y-2.5 ml-1">
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Automated Read & Understand (Linked to DMS)</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Role-Based Training Matrix & Certification</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Audit-Ready Individual Training Records</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> <span>AI Quiz & Comprehension Generator <span class="ai-badge">✨ AI</span></span></li>
+                    </ul>
+                </div>
+
+                <!-- Supplier Management -->
+                <div class="border border-gray-200 rounded-xl p-5 hover:border-slate-300 transition-colors bg-white shadow-sm avoid-page-break">
+                    <div class="flex items-center mb-4 pb-3 border-b border-slate-100">
+                        <div class="bg-slate-100 text-slate-700 p-2 rounded-lg mr-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <h3 class="font-black text-slate-800 text-lg">Supplier & Audit Mgmt</h3>
+                    </div>
+                    <ul class="text-sm text-slate-600 font-medium space-y-2.5 ml-1">
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Approved Supplier List (ASL) & Material Qual.</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Regulatory Vendor Site Audit Scheduling</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Supplier Corrective Action Requests (SCAR)</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Internal Audit & Inspection Readiness Tracking</li>
+                    </ul>
+                </div>
+
+                <!-- eBMR & Data -->
+                <div class="border border-gray-200 rounded-xl p-5 hover:border-slate-300 transition-colors bg-white shadow-sm avoid-page-break">
+                    <div class="flex items-center mb-4 pb-3 border-b border-slate-100">
+                        <div class="bg-slate-100 text-slate-700 p-2 rounded-lg mr-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        </div>
+                        <h3 class="font-black text-slate-800 text-lg">eBMR & Product Data</h3>
+                    </div>
+                    <ul class="text-sm text-slate-600 font-medium space-y-2.5 ml-1">
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> ISA-88 Standard Master Batch Records (MBR)</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Automated Batch Disposition & Release Workflows</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> Automated COA (Certificate of Analysis) Gen.</li>
+                        <li class="flex items-start"><span class="text-green-500 font-bold mr-2 mt-0.5">✔</span> <span>AI-Generated APQR Analytics <span class="ai-badge">✨ AI</span></span></li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 3. Financial Proposal -->
+        <div class="mb-12 page-break-before">
+            <!-- Professional Section Heading -->
+            <div class="flex items-center gap-4 mb-8">
+                <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 text-white font-black text-2xl shadow-lg shadow-slate-900/20 shrink-0 border border-slate-700">03</div>
+                <div class="flex-1 border-b-2 border-slate-200 pb-2">
+                    <h2 class="text-2xl font-black text-slate-900 tracking-tight uppercase">Financial Investment</h2>
+                    <p class="text-sm font-bold text-slate-500 mt-1 uppercase tracking-wider">Enterprise Pricing Schedule</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full mt-6">
+                <!-- Implementation Box -->
+                <div class="bg-white rounded-xl border-2 border-slate-200 overflow-hidden avoid-page-break shadow-sm flex flex-col">
+                    <div class="bg-slate-100 py-4 px-6 border-b border-slate-200">
+                        <h3 class="font-black text-slate-900 text-sm uppercase tracking-widest">Implementation & Validation</h3>
+                        <p class="text-xs font-bold text-slate-500 mt-1 uppercase">One-time Deployment Fee</p>
+                    </div>
+                    <div class="p-6 flex-1 flex flex-col">
+                        <ul class="text-sm font-medium text-slate-600 space-y-3 mb-6" contenteditable="true">
+                            <li class="flex items-start"><span class="text-slate-400 mr-2">▪</span> Enterprise Configuration (FDA / EMA Rulesets)</li>
+                            <li class="flex items-start"><span class="text-slate-400 mr-2">▪</span> Legacy Data & SOP Migration Strategy</li>
+                            <li class="flex items-start"><span class="text-slate-400 mr-2">▪</span> GAMP 5 CSV Validation Documentation Set</li>
+                            <li class="flex items-start"><span class="text-slate-400 mr-2">▪</span> Comprehensive Admin & User Training</li>
+                            <li class="flex items-start"><span class="text-slate-400 mr-2">▪</span> Hypercare Go-Live Support</li>
+                        </ul>
+                        <div class="border-t border-slate-200 pt-5 mt-auto bg-slate-50 -mx-6 -mb-6 px-6 pb-6">
+                            <p class="text-[0.65rem] font-black text-slate-400 mb-1 uppercase tracking-widest">Total One-Time Fee:</p>
+                            <div class="text-3xl font-black text-slate-900"><span contenteditable="true">$8,500</span> <span class="text-sm font-bold text-slate-500 ml-1">+ Applicable Taxes</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SaaS Box -->
+                <div class="bg-white rounded-xl border-2 border-medical-600 overflow-hidden relative shadow-lg avoid-page-break flex flex-col">
+                    <div class="absolute top-0 right-0 bg-medical-600 text-white text-[0.6rem] font-black px-4 py-1.5 rounded-bl-xl uppercase tracking-widest shadow-sm">
+                        Annual Subscription
+                    </div>
+                    <div class="bg-medical-50 py-4 px-6 border-b border-medical-100">
+                        <h3 class="font-black text-medical-900 text-sm uppercase tracking-widest">Global SaaS License</h3>
+                        <p class="text-xs font-bold text-medical-600 mt-1 uppercase">Platform & Hosting (Up to <span contenteditable="true">100</span> Users)</p>
+                    </div>
+                    <div class="p-6 flex-1 flex flex-col">
+                        <ul class="text-sm font-medium text-slate-700 space-y-3 mb-6" contenteditable="true">
+                            <li class="flex items-start"><span class="text-medical-500 mr-2">▪</span> Full Access to configured Global QMS Modules</li>
+                            <li class="flex items-start"><span class="text-medical-500 mr-2">▪</span> Dedicated FDA 21 CFR Part 11 Compliant Cloud</li>
+                            <li class="flex items-start"><span class="text-medical-500 mr-2">▪</span> Access to Generative AI Compliance Copilot</li>
+                            <li class="flex items-start"><span class="text-medical-500 mr-2">▪</span> Real-time Encrypted Backups & Disaster Recovery</li>
+                            <li class="flex items-start"><span class="text-medical-500 mr-2">▪</span> Routine Validated System Upgrades (99.9% SLA)</li>
+                        </ul>
+                        <div class="border-t border-medical-100 pt-5 mt-auto bg-medical-50/50 -mx-6 -mb-6 px-6 pb-6">
+                            <p class="text-[0.65rem] font-black text-medical-600 mb-1 uppercase tracking-widest">Annual Recurring Fee:</p>
+                            <div class="text-3xl font-black text-medical-900"><span contenteditable="true">$12,000</span> <span class="text-sm font-bold text-medical-700 ml-1">/ year + Taxes</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terms -->
+            <div class="mt-8 bg-slate-50 border border-slate-200 rounded-xl p-6 avoid-page-break shadow-sm">
+                <p class="font-black text-slate-800 text-sm uppercase tracking-widest mb-4">Payment Terms & Delivery Commitment:</p>
+                <div contenteditable="true" class="outline-none">
+                    <ul class="list-disc pl-5 space-y-2 text-sm font-medium text-slate-600 mb-4">
+                        <li><strong>50% Advance</strong> upon Execution of Official Purchase Order.</li>
+                        <li><strong>40% Milestone Payment</strong> upon completion of Validation/User Acceptance Testing (UAT).</li>
+                        <li><strong>10% Final Payment</strong> upon Production Environment Go-Live Sign-off.</li>
+                    </ul>
+                    <p class="text-xs text-slate-500 bg-white p-3 rounded border border-slate-200"><strong>Implementation Timeline:</strong> Target Go-Live is 45-60 Days from Kickoff, dependent on client data readiness. Annual SaaS subscription is billed 100% in advance prior to system Go-Live.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Acceptance -->
+        <div class="mb-4 avoid-page-break">
+            <!-- Professional Section Heading -->
+            <div class="flex items-center gap-4 mb-6">
+                <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 text-white font-black text-2xl shadow-lg shadow-slate-900/20 shrink-0 border border-slate-700">04</div>
+                <div class="flex-1 border-b-2 border-slate-200 pb-2">
+                    <h2 class="text-2xl font-black text-slate-900 tracking-tight uppercase">Acceptance & Authorization</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm font-medium text-slate-500 mb-10 leading-relaxed max-w-3xl">
+                By signing below, the authorized representatives agree to the scope, commercial framework, and conditions outlined in this Global Enterprise Proposal. A formal Master Subscription Agreement (MSA) and SLA will be established upon receipt of a Purchase Order.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-16 mt-12 w-full">
+                <!-- AIVOA Signature -->
+                <div>
+                    <div class="border-b-2 border-slate-300 h-12 w-full mb-4 relative">
+                        <span class="absolute bottom-1 left-2 text-medical-600 font-[cursive] text-2xl opacity-50 select-none">Aivoa Auth.</span>
+                    </div>
+                    <p class="font-black text-slate-800 text-lg" contenteditable="true">Authorized Signatory</p>
+                    <p class="text-sm font-bold text-medical-700">AIVOA Technologies</p>
+                    <p class="text-xs font-medium text-slate-400 mt-2">Date: <span contenteditable="true" class="text-slate-600 border-b border-dashed border-slate-300 min-w-[120px] inline-block"></span></p>
+                </div>
+
+                <!-- Client Signature -->
+                <div>
+                    <div class="border-b-2 border-slate-300 h-12 w-full mb-4"></div>
+                    <p class="font-black text-slate-800 text-lg" contenteditable="true">Authorized Signatory</p>
+                    <p class="text-sm font-bold text-slate-500" contenteditable="true">Global Pharma Solutions LLC</p>
+                    <p class="text-xs font-medium text-slate-400 mt-2">Date: <span contenteditable="true" class="text-slate-600 border-b border-dashed border-slate-300 min-w-[120px] inline-block"></span></p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- Footer -->
+    <div class="bg-slate-900 text-center py-5 text-[0.65rem] font-bold text-slate-400 border-t-4 border-medical-600 uppercase tracking-widest">
+        AIVOA QMS Enterprise Suite <span contenteditable="true">2026</span> | Confidential Commercial Proposal | GAMP 5 & 21 CFR Part 11 Compliant
+    </div>
+
+</div>
+
+<!-- Print Button for Preview Convenience -->
+<div class="max-w-4xl mx-auto mt-8 text-center no-print pb-12">
+    <button onclick="window.print()" class="bg-slate-900 hover:bg-black text-white font-black py-3 px-8 rounded-xl shadow-lg transition-all border border-slate-700 uppercase tracking-widest text-sm flex items-center justify-center mx-auto gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        Generate PDF Proposal
+    </button>
+</div>
+
+</body>
+</html>

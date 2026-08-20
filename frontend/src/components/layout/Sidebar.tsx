@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'motion/react'
-import { MessageSquare, LayoutDashboard, Building2, Target, Mail, X, LogOut } from 'lucide-react'
+import { MessageSquare, LayoutDashboard, Building2, Target, Mail, Briefcase, FileText, X, LogOut } from 'lucide-react'
 import Logo from './Logo'
 import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/lib/utils'
@@ -9,6 +9,8 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/chat', icon: MessageSquare, label: 'AI Chat' },
   { to: '/companies', icon: Building2, label: 'Companies' },
+  { to: '/accounts', icon: Briefcase, label: 'Accounts' },
+  { to: '/quotations', icon: FileText, label: 'Quotations' },
   { to: '/leads', icon: Target, label: 'Leads' },
   { to: '/campaigns', icon: Mail, label: 'Campaigns' },
 ]

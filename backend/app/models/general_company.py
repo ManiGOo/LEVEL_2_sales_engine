@@ -36,6 +36,12 @@ class GeneralCompany(Base):
 
     created_by: Mapped[str | None] = mapped_column(String(36))
     created_by_name: Mapped[str | None] = mapped_column(String(255))
+
+    # Account workflow ownership. The first user to build the workflow claims the
+    # account; only the owner (or an admin) may edit it afterwards.
+    account_owner_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    account_owner_email: Mapped[str | None] = mapped_column(String(255))
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

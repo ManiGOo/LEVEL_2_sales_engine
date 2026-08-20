@@ -317,3 +317,180 @@ export interface GeneralCompanyPage {
   page_size: number
   pages: number
 }
+
+export type AccountStageStatus = 'planned' | 'active' | 'completed' | 'blocked'
+
+export interface AccountStageSnapshot {
+  id: string
+  stage_id: string
+  company_key: string
+  name: string
+  status: AccountStageStatus
+  objective: string | null
+  data: Record<string, unknown> | null
+  actor_name: string | null
+  created_at: string
+}
+
+export interface AccountStage {
+  id: string
+  company_key: string
+  company_name: string
+  name: string
+  status: AccountStageStatus
+  objective: string | null
+  data: Record<string, unknown> | null
+  order_index: number
+  version: number
+  history: AccountStageSnapshot[]
+  created_at: string
+  updated_at: string
+}
+
+export interface AccountListItem {
+  company_key: string
+  name: string
+  current_stage: AccountStage | null
+  total_stages: number
+}
+
+export interface AccountListPage {
+  items: AccountListItem[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}
+
+export interface AccountDetail {
+  company_key: string
+  company_name: string | null
+  owner_id: string | null
+  owner_email: string | null
+  stages: AccountStage[]
+}
+
+export interface AccountHistoryItem {
+  id: string
+  stage_id: string
+  stage_name: string
+  actor_name: string | null
+  status: AccountStageStatus
+  created_at: string
+}
+
+export interface AccountTemplateStage {
+  name: string
+  objective: string
+  status: AccountStageStatus
+  fields: string[]
+}
+
+export interface AccountTemplate {
+  key: string
+  name: string
+  description: string
+  stages: AccountTemplateStage[]
+}
+
+export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'
+
+export interface QuotationLineItem {
+  category: string
+  description: string
+  qty: number
+  unit: string
+  unit_price: number
+  type: 'one_time' | 'recurring'
+  discount_pct: number
+  line_total: number
+}
+
+export interface Quotation {
+  id: string
+  company_key: string
+  company_name: string
+  quote_number: string
+  status: QuotationStatus
+  currency: string
+  title: string
+  valid_until: string | null
+  intro: string | null
+  terms: string | null
+  notes: string | null
+  line_items: QuotationLineItem[]
+  subtotal: number
+  discount_total: number
+  tax_pct: number
+  tax_amount: number
+  total: number
+  owner_id: string | null
+  owner_email: string | null
+  version: number
+  html: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface QuotationListItem {
+  id: string
+  company_key: string
+  company_name: string
+  quote_number: string
+  status: QuotationStatus
+  currency: string
+  title: string
+  total: number
+  valid_until: string | null
+  version: number
+  updated_at: string
+}
+
+export interface QuotationListPage {
+  items: QuotationListItem[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}
+
+export interface QuotationInput {
+  company_key?: string
+  company_name?: string
+  title?: string
+  currency?: string
+  status?: QuotationStatus
+  valid_until?: string | null
+  intro?: string | null
+  terms?: string | null
+  notes?: string | null
+  tax_pct?: number
+  line_items?: Array<{
+    category: string
+    description: string
+    qty: number
+    unit: string
+    unit_price: number
+    type: 'one_time' | 'recurring'
+    discount_pct: number
+  }>
+}
+
+export interface QuotationVersionMeta {
+  version: number
+  created_at: string
+  created_by_email: string | null
+  status: string
+  total: number
+  has_html: boolean
+}
+
+export interface QuotationVersionDetail {
+  version: number
+  created_at: string
+  created_by_email: string | null
+  status: string
+  total: number
+  data: Record<string, unknown>
+  html: string | null
+}

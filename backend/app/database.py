@@ -95,3 +95,39 @@ async def ensure_campaign_activity_schema() -> None:
                 if name not in existing:
                     sync_conn.execute(text(f"ALTER TABLE sales_app.campaign_activities ADD COLUMN {name} {definition}"))
         await conn.run_sync(migrate)
+
+
+async def ensure_account_workflow_schema() -> None:
+    """Additive, idempotent migrations for the account workflow tables."""
+    stage_columns = {
+        "version": "INTEGER NOT NULL DEFAULT 1",
+    }
+    company_columns = {
+        "account_owner_id": "VARCHAR(36)",
+        "account_owner_email": "VARCHAR(255)",
+    }
+    async with engine.begin() as conn:
+        def migrate(sync_conn):
+            stage_existing = {c["name"] for c in inspect(sync_conn).get_columns("account_workflow_stages", schema="sales_app")}
+            for name, definition in stage_columns.items():
+                if name not in stage_existing:
+                    sync_conn.execute(text(f"ALTER TABLE sales_app.account_workflow_stages ADD COLUMN {name} {definition}"))
+            company_existing = {c["name"] for c in inspect(sync_conn).get_columns("general_companies", schema="sales_app")}
+            for name, definition in company_columns.items():
+                if name not in company_existing:
+                    sync_conn.execute(text(f"ALTER TABLE sales_app.general_companies ADD COLUMN {name} {definition}"))
+        await conn.run_sync(migrate)
+
+
+async def ensure_quotation_schema() -> None:
+    """Additive, idempotent migrations for the quotations table."""
+    columns = {
+        "html": "TEXT",
+    }
+    async with engine.begin() as conn:
+        def migrate(sync_conn):
+            existing = {c["name"] for c in inspect(sync_conn).get_columns("quotations", schema="sales_app")}
+            for name, definition in columns.items():
+                if name not in existing:
+                    sync_conn.execute(text(f"ALTER TABLE sales_app.quotations ADD COLUMN {name} {definition}"))
+        await conn.run_sync(migrate)
