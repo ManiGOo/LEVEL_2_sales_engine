@@ -18,17 +18,19 @@ import {
 } from 'lucide-react'
 import { useApi } from '@/hooks/useApi'
 import { useAuth } from '@/providers/AuthProvider'
-import type { Quotation, QuotationInput, QuotationLineItem, QuotationVersionMeta, QuotationVersionDetail } from '@/types/api'
+import type { Quotation, QuotationInput, QuotationLineItem, QuotationVersionMeta, QuotationVersionDetail, QuotationModule } from '@/types/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/Modal'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
+import { ModuleEditor } from '@/components/ui/ModuleEditor'
 import { showToast } from '@/components/ui/toast'
 import {
   computeTotals,
   lineTotal,
   formatMoney,
   emptyLineItem,
+  emptySubscriptionItem,
   canEditQuotation,
   QUOTATION_STATUS_VARIANT,
 } from '@/lib/quotation'
@@ -63,6 +65,8 @@ export default function QuotationDetailPage() {
     valid_until: string
     intro: string
     terms: string
+    scope: string
+    modules: QuotationModule[]
     tax_pct: number | ''
     items: EditableItem[]
   } | null>(null)
@@ -85,12 +89,14 @@ export default function QuotationDetailPage() {
       doc.addEventListener('input', () => {
         const introEl = doc.querySelector('[data-field="intro"]') as HTMLElement | null
         const termsEl = doc.querySelector('[data-field="terms"]') as HTMLElement | null
+        const scopeEl = doc.querySelector('[data-field="scope"]') as HTMLElement | null
         setForm((prev) =>
           prev
             ? {
                 ...prev,
                 intro: introEl ? introEl.innerHTML : prev.intro,
                 terms: termsEl ? termsEl.innerHTML : prev.terms,
+                scope: scopeEl ? scopeEl.innerHTML : prev.scope,
               }
             : prev,
         )
@@ -123,6 +129,8 @@ export default function QuotationDetailPage() {
       valid_until: data.valid_until || '',
       intro: data.intro || '',
       terms: data.terms || '',
+      scope: data.scope || '',
+      modules: data.modules || [],
       tax_pct: data.tax_pct ? data.tax_pct : '',
       items: data.line_items.map((it) => ({
         category: it.category,
@@ -132,6 +140,7 @@ export default function QuotationDetailPage() {
         unit_price: it.unit_price,
         type: it.type,
         discount_pct: it.discount_pct,
+        tax_pct: it.tax_pct || 0,
       })),
     })
   }, [data?.id, data?.version])
@@ -139,7 +148,7 @@ export default function QuotationDetailPage() {
   const editable = canEditQuotation(data ?? null, user?.id, user?.role)
 
   const totals = form
-    ? computeTotals(form.items, form.tax_pct === '' ? 0 : form.tax_pct)
+    ? computeTotals(form.items)
     : { subtotal: 0, discount_total: 0, tax_amount: 0, total: 0 }
 
   const saveMutation = useMutation({
@@ -151,6 +160,8 @@ export default function QuotationDetailPage() {
         valid_until: form!.valid_until || null,
         intro: form!.intro,
         terms: form!.terms,
+        scope: form!.scope,
+        modules: form!.modules,
         tax_pct: form!.tax_pct === '' ? 0 : form!.tax_pct,
         line_items: form!.items,
       }
@@ -213,6 +224,8 @@ export default function QuotationDetailPage() {
         valid_until: form!.valid_until || null,
         intro: form!.intro,
         terms: form!.terms,
+        scope: form!.scope,
+        modules: form!.modules,
         tax_pct: form!.tax_pct === '' ? 0 : form!.tax_pct,
         line_items: form!.items,
       }),
@@ -248,6 +261,40 @@ export default function QuotationDetailPage() {
         showToast({ variant: 'error', title: 'Could not save document' })
       }
     },
+  })
+
+  const downloadPdfMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetchApi(`/api/v1/quotations/${id}/pdf`, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: form!.title,
+          currency: form!.currency,
+          status: form!.status,
+          valid_until: form!.valid_until || null,
+          intro: form!.intro,
+          terms: form!.terms,
+          scope: form!.scope,
+          modules: form!.modules,
+          tax_pct: form!.tax_pct === '' ? 0 : form!.tax_pct,
+          line_items: form!.items,
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to generate PDF')
+      return await res.blob()
+    },
+    onSuccess: (blob) => {
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Quotation-${data?.quote_number || id}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      showToast({ variant: 'success', title: 'PDF Downloaded' })
+    },
+    onError: () => showToast({ variant: 'error', title: 'Could not generate PDF' }),
   })
 
   const resetDocMutation = useMutation({
@@ -310,9 +357,9 @@ export default function QuotationDetailPage() {
     if (!form) return
     setForm({ ...form, items: form.items.map((it, i) => (i === index ? { ...it, ...patch } : it)) })
   }
-  function addItem() {
+  function addItem(item?: EditableItem) {
     if (!form) return
-    setForm({ ...form, items: [...form.items, emptyLineItem()] })
+    setForm({ ...form, items: [...form.items, item ?? emptyLineItem()] })
   }
   function removeItem(index: number) {
     if (!form) return
@@ -394,7 +441,7 @@ export default function QuotationDetailPage() {
                   className={inputCls}
                 >
                   {CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>
+                    <option key={c.code} value={c.code} className={optionCls}>
                       {c.code} — {c.name}
                     </option>
                   ))}
@@ -407,11 +454,11 @@ export default function QuotationDetailPage() {
                   onChange={(e) => setForm({ ...form, status: e.target.value as Quotation['status'] })}
                   className={inputCls}
                 >
-                  <option value="draft">Draft</option>
-                  <option value="sent">Sent</option>
-                  <option value="accepted">Accepted</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="expired">Expired</option>
+                  <option value="draft" className={optionCls}>Draft</option>
+                  <option value="sent" className={optionCls}>Sent</option>
+                  <option value="accepted" className={optionCls}>Accepted</option>
+                  <option value="rejected" className={optionCls}>Rejected</option>
+                  <option value="expired" className={optionCls}>Expired</option>
                 </select>
               </Field>
               <Field label="Valid until">
@@ -423,18 +470,7 @@ export default function QuotationDetailPage() {
                   className={inputCls}
                 />
               </Field>
-              <Field label="Tax %">
-                <input
-                  type="number"
-                  step="0.01"
-                  disabled={!editable}
-                  value={form.tax_pct}
-                  onChange={(e) =>
-                    setForm({ ...form, tax_pct: e.target.value === '' ? '' : Number(e.target.value) })
-                  }
-                  className={inputCls}
-                />
-              </Field>
+
             </div>
             <div className="mt-4 space-y-3">
               <Field label="Executive overview">
@@ -442,6 +478,20 @@ export default function QuotationDetailPage() {
                   value={form.intro}
                   disabled={!editable}
                   onChange={(html) => setForm({ ...form, intro: html })}
+                />
+              </Field>
+              <Field label="Functional Scope & Architecture">
+                <RichTextEditor
+                  value={form.scope}
+                  disabled={!editable}
+                  onChange={(html) => setForm({ ...form, scope: html })}
+                />
+              </Field>
+              <Field label="Scope Modules (Grid Cards)">
+                <ModuleEditor
+                  modules={form.modules}
+                  onChange={(mods) => setForm({ ...form, modules: mods })}
+                  disabled={!editable}
                 />
               </Field>
               <Field label="Payment terms & conditions">
@@ -453,84 +503,6 @@ export default function QuotationDetailPage() {
               </Field>
             </div>
           </Section>
-
-          <Section title="Line items">
-            <div className="overflow-x-auto rounded-xl border border-slate-700/60">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-slate-400 bg-slate-800/40">
-                    <th className="px-2 py-2 font-medium">Category</th>
-                    <th className="px-2 py-2 font-medium">Description</th>
-                    <th className="px-2 py-2 font-medium w-16">Qty</th>
-                    <th className="px-2 py-2 font-medium">Unit</th>
-                    <th className="px-2 py-2 font-medium w-24">Unit price</th>
-                    <th className="px-2 py-2 font-medium w-28">Type</th>
-                    <th className="px-2 py-2 font-medium w-16">Disc%</th>
-                    <th className="px-2 py-2 font-medium w-24 text-right">Amount</th>
-                    {editable && <th className="px-2 py-2" />}
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.items.map((it, i) => (
-                    <tr key={i} className="border-t border-slate-700/40 align-top">
-                      <td className="px-2 py-1">
-                        <input disabled={!editable} value={it.category} onChange={(e) => updateItem(i, { category: e.target.value })} className={cellCls} />
-                      </td>
-                      <td className="px-2 py-1">
-                        <textarea rows={1} disabled={!editable} value={it.description} onChange={(e) => updateItem(i, { description: e.target.value })} className={cellCls} />
-                      </td>
-                      <td className="px-2 py-1">
-                        <input type="number" step="0.01" disabled={!editable} value={it.qty} onChange={(e) => updateItem(i, { qty: Number(e.target.value) })} className={cellCls} />
-                      </td>
-                      <td className="px-2 py-1">
-                        <select disabled={!editable} value={it.unit} onChange={(e) => updateItem(i, { unit: e.target.value })} className={cellCls}>
-                          {UNIT_OPTIONS.map((u) => (
-                            <option key={u} value={u}>
-                              {u}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-2 py-1">
-                        <input type="number" step="0.01" disabled={!editable} value={it.unit_price} onChange={(e) => updateItem(i, { unit_price: Number(e.target.value) })} className={cellCls} />
-                      </td>
-                      <td className="px-2 py-1">
-                        <select disabled={!editable} value={it.type} onChange={(e) => updateItem(i, { type: e.target.value as 'one_time' | 'recurring' })} className={cellCls}>
-                          <option value="one_time">One-time</option>
-                          <option value="recurring">Recurring</option>
-                        </select>
-                      </td>
-                      <td className="px-2 py-1">
-                        <input type="number" step="0.01" disabled={!editable} value={it.discount_pct} onChange={(e) => updateItem(i, { discount_pct: Number(e.target.value) })} className={cellCls} />
-                      </td>
-                      <td className="px-2 py-1 text-right text-white font-semibold whitespace-nowrap">
-                        {formatMoney(lineTotal(it), form.currency)}
-                      </td>
-                      {editable && (
-                        <td className="px-2 py-1 text-right">
-                          <button onClick={() => removeItem(i)} className="text-slate-500 hover:text-red-300">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                  {!form.items.length && (
-                    <tr>
-                      <td colSpan={editable ? 9 : 8} className="px-3 py-4 text-center text-slate-400">
-                        No line items yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {editable && (
-              <Button variant="secondary" className="mt-3" onClick={addItem}>
-                <Plus className="w-4 h-4" /> Add line item
-              </Button>
-            )}
-          </Section>
         </div>
 
         <div className="space-y-6">
@@ -539,13 +511,12 @@ export default function QuotationDetailPage() {
             <dl className="space-y-2 text-sm">
               <Row label="Subtotal" value={formatMoney(totals.subtotal, form.currency)} />
               <Row label="Discount" value={`- ${formatMoney(totals.discount_total, form.currency)}`} />
-              <Row
-                label={form.tax_pct === '' || form.tax_pct === 0 ? 'Tax' : `Tax (${form.tax_pct}%)`}
-                value={form.tax_pct === '' || form.tax_pct === 0 ? 'As applicable' : formatMoney(totals.tax_amount, form.currency)}
-              />
+              <Row label="Tax" value={formatMoney(totals.tax_amount, form.currency)} />
               <div className="pt-2 mt-2 border-t border-slate-700/60 flex items-center justify-between">
-                <dt className="text-white font-bold">Total</dt>
-                <dd className="text-white font-bold text-lg">{formatMoney(totals.total, form.currency)}</dd>
+                <dt className="text-white font-bold">Grand Total</dt>
+                <dd className="text-white font-bold text-lg">
+                  {formatMoney(totals.total, form.currency)}
+                </dd>
               </div>
             </dl>
             {editable && (
@@ -586,6 +557,95 @@ export default function QuotationDetailPage() {
         </div>
       </div>
 
+      <div className="mt-6">
+        <Section title="Line items">
+            <div className="overflow-x-auto rounded-xl border border-slate-700/60">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-400 bg-slate-800/40">
+                    <th className="px-2 py-2 font-medium">Category</th>
+                    <th className="px-2 py-2 font-medium">Description</th>
+                    <th className="px-2 py-2 font-medium w-16">Qty</th>
+                    <th className="px-2 py-2 font-medium">Unit</th>
+                    <th className="px-2 py-2 font-medium w-24">Unit price</th>
+                    <th className="px-2 py-2 font-medium w-28">Type</th>
+                    <th className="px-2 py-2 font-medium w-16">Disc%</th>
+                    <th className="px-2 py-2 font-medium w-16">Tax%</th>
+                    <th className="px-2 py-2 font-medium w-24 text-right">Amount</th>
+                    {editable && <th className="px-2 py-2" />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.items.map((it, i) => (
+                    <tr key={i} className="border-t border-slate-700/40 align-top">
+                      <td className="px-2 py-1">
+                        <input disabled={!editable} value={it.category} onChange={(e) => updateItem(i, { category: e.target.value })} className={cellCls} />
+                      </td>
+                      <td className="px-2 py-1 min-w-[250px]">
+                        <RichTextEditor disabled={!editable} value={it.description} onChange={(html) => updateItem(i, { description: html })} minHeight={60} />
+                      </td>
+                      <td className="px-2 py-1">
+                        <input type="number" step="0.01" disabled={!editable} value={it.qty} onChange={(e) => updateItem(i, { qty: Number(e.target.value) })} className={cellCls} />
+                      </td>
+                      <td className="px-2 py-1">
+                        <select disabled={!editable} value={it.unit} onChange={(e) => updateItem(i, { unit: e.target.value })} className={cellCls}>
+                          {UNIT_OPTIONS.map((u) => (
+                            <option key={u} value={u} className={optionCls}>
+                              {u}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-2 py-1">
+                        <input type="number" step="0.01" disabled={!editable} value={it.unit_price} onChange={(e) => updateItem(i, { unit_price: Number(e.target.value) })} className={cellCls} />
+                      </td>
+                      <td className="px-2 py-1">
+                        <select disabled={!editable} value={it.type} onChange={(e) => updateItem(i, { type: e.target.value as 'one_time' | 'recurring' })} className={cellCls}>
+                          <option value="one_time" className={optionCls}>One-time</option>
+                          <option value="recurring" className={optionCls}>Recurring</option>
+                        </select>
+                      </td>
+                      <td className="px-2 py-1">
+                        <input type="number" step="0.01" disabled={!editable} value={it.discount_pct} onChange={(e) => updateItem(i, { discount_pct: Number(e.target.value) })} className={cellCls} />
+                      </td>
+                      <td className="px-2 py-1">
+                        <input type="number" step="0.01" disabled={!editable} value={it.tax_pct} onChange={(e) => updateItem(i, { tax_pct: Number(e.target.value) })} className={cellCls} />
+                      </td>
+                      <td className="px-2 py-1 text-right text-white font-semibold whitespace-nowrap">
+                        {formatMoney(lineTotal(it), form.currency)}
+                      </td>
+                      {editable && (
+                        <td className="px-2 py-1 text-right">
+                          <button onClick={() => removeItem(i)} className="text-slate-500 hover:text-red-300">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {!form.items.length && (
+                    <tr>
+                      <td colSpan={editable ? 9 : 8} className="px-3 py-4 text-center text-slate-400">
+                        No line items yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {editable && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => addItem()}>
+                  <Plus className="w-4 h-4" /> Add one-time item
+                </Button>
+                <Button variant="secondary" onClick={() => addItem(emptySubscriptionItem())}>
+                  <Plus className="w-4 h-4" /> Add annual subscription
+                </Button>
+              </div>
+            )}
+          </Section>
+      </div>
+
       <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title="Proposal preview" className="lg:max-w-5xl">
         {previewHtml && (
           <div className="space-y-3">
@@ -604,16 +664,13 @@ export default function QuotationDetailPage() {
                   {saveDocMutation.isPending ? 'Saving…' : 'Save document changes'}
                 </Button>
                 <Button
-                  variant="secondary"
-                  onClick={() => {
-                    const w = iframeRef.current?.contentWindow
-                    if (w) {
-                      w.focus()
-                      w.print()
-                    }
-                  }}
+                  size="sm"
+                  className="gap-2"
+                  disabled={downloadPdfMutation.isPending}
+                  onClick={() => downloadPdfMutation.mutate()}
                 >
-                  <Printer className="w-4 h-4" /> Print / Save as PDF
+                  <Printer className="w-4 h-4" /> 
+                  {downloadPdfMutation.isPending ? 'Generating PDF...' : 'Download PDF'}
                 </Button>
               </div>
             </div>
@@ -694,6 +751,7 @@ const inputCls =
   'w-full px-3 py-2 rounded-xl bg-slate-800/70 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60'
 const cellCls =
   'w-full bg-transparent text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-1 py-1 disabled:opacity-60'
+const optionCls = 'bg-slate-800 text-white'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

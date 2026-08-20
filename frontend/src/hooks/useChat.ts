@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import type { ChatMessage, ToolCall } from '@/types/api'
-import { useAuth } from '@/providers/AuthProvider'
+import { useAuth, isTokenExpired } from '@/providers/AuthProvider'
 import { useApi } from '@/hooks/useApi'
 
 export function useChat() {
@@ -8,7 +8,7 @@ export function useChat() {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
-  const { tokens } = useAuth()
+  const { tokens, refresh } = useAuth()
   const { fetchApi } = useApi()
 
   const loadConversation = useCallback(
@@ -60,11 +60,19 @@ export function useChat() {
       }))
 
       try {
+        let accessToken = tokens?.access_token
+        if (accessToken && isTokenExpired(accessToken)) {
+          try {
+            accessToken = await refresh()
+          } catch {
+            // fall through; backend will reject and the error surfaces below
+          }
+        }
         const res = await fetch('/api/v1/chat/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${tokens?.access_token}`,
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             message: content,

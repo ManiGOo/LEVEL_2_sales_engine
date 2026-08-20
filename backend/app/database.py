@@ -123,6 +123,8 @@ async def ensure_quotation_schema() -> None:
     """Additive, idempotent migrations for the quotations table."""
     columns = {
         "html": "TEXT",
+        "scope": "TEXT",
+        "modules": "JSON",
     }
     async with engine.begin() as conn:
         def migrate(sync_conn):

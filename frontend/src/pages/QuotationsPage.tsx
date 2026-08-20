@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/Modal'
 import { showToast } from '@/components/ui/toast'
 import { formatMoney, QUOTATION_STATUS_VARIANT } from '@/lib/quotation'
+import { CURRENCIES } from '@/lib/currencies'
+import { QUOTATION_TEMPLATES, getTemplate } from '@/lib/quotationTemplates'
 import Pagination from '@/components/ui/Pagination'
 
 const PAGE_SIZE = 30
@@ -179,6 +181,8 @@ function CreateQuotationModal({
   const [q, setQ] = useState('')
   const [results, setResults] = useState<AccountListPage | null>(null)
   const [selected, setSelected] = useState<{ company_key: string; company_name: string } | null>(null)
+  const [templateId, setTemplateId] = useState('custom')
+  const [currency, setCurrency] = useState('USD')
 
   async function load(query: string) {
     const params = new URLSearchParams({ q: query.trim(), page_size: '50' })
@@ -190,6 +194,11 @@ function CreateQuotationModal({
     if (open) load('')
   }, [open])
 
+  useEffect(() => {
+    const tpl = getTemplate(templateId)
+    if (tpl?.defaults) setCurrency(tpl.defaults.currency)
+  }, [templateId])
+
   async function search(e: React.FormEvent) {
     e.preventDefault()
     await load(q)
@@ -197,16 +206,67 @@ function CreateQuotationModal({
 
   function confirm() {
     if (!selected) return
+    const tpl = getTemplate(templateId)
+    if (!tpl?.defaults) {
+      onCreate({
+        company_key: selected.company_key,
+        company_name: selected.company_name,
+        title: 'Commercial Proposal',
+        currency,
+        status: 'draft',
+      })
+      return
+    }
+    const d = tpl.defaults
     onCreate({
       company_key: selected.company_key,
       company_name: selected.company_name,
-      title: 'Commercial Proposal',
+      title: d.title,
+      currency: d.currency,
+      tax_pct: d.tax_pct,
+      intro: d.intro,
+      terms: d.terms,
+      scope: d.scope,
+      notes: d.notes,
+      line_items: d.line_items.map(it => ({ ...it, tax_pct: it.tax_pct || 0 })),
       status: 'draft',
     })
   }
 
   return (
     <Modal open={open} onClose={onClose} title="New quotation">
+      <div className="p-6">
+        <div className="mb-4">
+        <label className="block text-xs font-medium text-slate-300 mb-1">Template</label>
+        <select
+          value={templateId}
+          onChange={(e) => setTemplateId(e.target.value)}
+          className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          {QUOTATION_TEMPLATES.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+        <p className="text-xs text-slate-400 mt-1">
+          {QUOTATION_TEMPLATES.find((t) => t.id === templateId)?.description}
+        </p>
+      </div>
+
+      {templateId === 'custom' && (
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-slate-300 mb-1">Currency</label>
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <form onSubmit={search} className="flex items-center gap-2 mb-4">
         <input
           value={q}
@@ -241,6 +301,7 @@ function CreateQuotationModal({
         <Button onClick={confirm} disabled={!selected || loading}>
           {loading ? 'Creating...' : 'Create draft'}
         </Button>
+      </div>
       </div>
     </Modal>
   )

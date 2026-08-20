@@ -403,7 +403,14 @@ export interface QuotationLineItem {
   unit_price: number
   type: 'one_time' | 'recurring'
   discount_pct: number
-  line_total: number
+  tax_pct: number
+  line_total?: number
+}
+
+export interface QuotationModule {
+  title: string
+  icon: string
+  items: string[]
 }
 
 export interface Quotation {
@@ -417,6 +424,8 @@ export interface Quotation {
   valid_until: string | null
   intro: string | null
   terms: string | null
+  scope: string | null
+  modules: QuotationModule[]
   notes: string | null
   line_items: QuotationLineItem[]
   subtotal: number
@@ -459,10 +468,12 @@ export interface QuotationInput {
   company_name?: string
   title?: string
   currency?: string
-  status?: QuotationStatus
+  status?: string
   valid_until?: string | null
   intro?: string | null
   terms?: string | null
+  scope?: string | null
+  modules?: QuotationModule[]
   notes?: string | null
   tax_pct?: number
   line_items?: Array<{
@@ -473,6 +484,7 @@ export interface QuotationInput {
     unit_price: number
     type: 'one_time' | 'recurring'
     discount_pct: number
+    tax_pct: number
   }>
 }
 

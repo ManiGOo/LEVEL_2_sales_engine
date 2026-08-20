@@ -10,6 +10,7 @@ interface RichTextEditorProps {
 
 export function RichTextEditor({ value, onChange, disabled, className, minHeight = 90 }: RichTextEditorProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const savedRange = useRef<Range | null>(null)
 
   useEffect(() => {
     if (ref.current && ref.current.innerHTML !== (value || '')) {
@@ -17,13 +18,47 @@ export function RichTextEditor({ value, onChange, disabled, className, minHeight
     }
   }, [value])
 
+  function saveSelection() {
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount > 0 && ref.current?.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      savedRange.current = sel.getRangeAt(0).cloneRange()
+    }
+  }
+
+  function restoreSelection() {
+    const sel = window.getSelection()
+    if (!sel) return
+    if (savedRange.current) {
+      sel.removeAllRanges()
+      sel.addRange(savedRange.current)
+    } else if (ref.current) {
+      ref.current.focus()
+      const range = document.createRange()
+      range.selectNodeContents(ref.current)
+      range.collapse(false)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    }
+  }
+
   function sync() {
     onChange(ref.current?.innerHTML || '')
   }
 
   function exec(cmd: string, arg?: string) {
-    document.execCommand(cmd, false, arg)
     ref.current?.focus()
+    restoreSelection()
+    document.execCommand(cmd, false, arg)
+    saveSelection()
+    sync()
+  }
+
+  function clearFormat() {
+    ref.current?.focus()
+    restoreSelection()
+    document.execCommand('formatBlock', false, 'P')
+    document.execCommand('removeFormat')
+    saveSelection()
     sync()
   }
 
@@ -58,7 +93,7 @@ export function RichTextEditor({ value, onChange, disabled, className, minHeight
         <button type="button" className="rte-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('formatBlock', 'H3')}>
           H
         </button>
-        <button type="button" className="rte-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('removeFormat')}>
+        <button type="button" className="rte-btn" onMouseDown={(e) => e.preventDefault()} onClick={clearFormat}>
           Clear
         </button>
       </div>
@@ -67,6 +102,9 @@ export function RichTextEditor({ value, onChange, disabled, className, minHeight
         contentEditable
         suppressContentEditableWarning
         onInput={sync}
+        onKeyUp={saveSelection}
+        onMouseUp={saveSelection}
+        onBlur={saveSelection}
         className="prose-rich px-3 py-2 text-sm text-white"
         style={{ minHeight }}
       />

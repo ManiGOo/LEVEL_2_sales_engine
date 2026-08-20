@@ -12,11 +12,18 @@ class QuotationLineItem(BaseModel):
     unit_price: float = 0
     type: str = "one_time"  # one_time | recurring
     discount_pct: float = 0
+    tax_pct: float = 0
 
     @field_validator("type")
     @classmethod
     def _type_ok(cls, v: str) -> str:
         return v if v in ("one_time", "recurring") else "one_time"
+
+
+class QuotationModule(BaseModel):
+    title: str = ""
+    icon: str = "document"
+    items: list[str] = []
 
 
 class QuotationCreate(BaseModel):
@@ -28,6 +35,8 @@ class QuotationCreate(BaseModel):
     valid_until: date | None = None
     intro: str | None = None
     terms: str | None = None
+    scope: str | None = None
+    modules: list[QuotationModule] = []
     notes: str | None = None
     tax_pct: float = 0
     line_items: list[QuotationLineItem] = []
@@ -40,6 +49,8 @@ class QuotationUpdate(BaseModel):
     valid_until: date | None = None
     intro: str | None = None
     terms: str | None = None
+    scope: str | None = None
+    modules: list[QuotationModule] | None = None
     notes: str | None = None
     tax_pct: float | None = None
     line_items: list[QuotationLineItem] | None = None
@@ -53,6 +64,7 @@ class QuotationLineItemResponse(BaseModel):
     unit_price: float = 0
     type: str = "one_time"
     discount_pct: float = 0
+    tax_pct: float = 0
     line_total: float = 0
 
     model_config = {"from_attributes": True}
@@ -69,6 +81,8 @@ class QuotationResponse(BaseModel):
     valid_until: date | None = None
     intro: str | None = None
     terms: str | None = None
+    scope: str | None = None
+    modules: list[QuotationModule] = []
     notes: str | None = None
     line_items: list[QuotationLineItemResponse] = []
     subtotal: float = 0

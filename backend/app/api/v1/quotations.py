@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -84,6 +84,19 @@ async def render_quotation_from_form(
     if html is None:
         raise HTTPException(status_code=404, detail="Quotation not found")
     return QuotationRender(html=html)
+
+@router.post("/{quotation_id}/pdf")
+async def generate_quotation_pdf(
+    quotation_id: str,
+    body: QuotationUpdate | None = None,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    pdf_bytes = await quotation_service.generate_pdf(db, quotation_id, body)
+    if pdf_bytes is None:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=Quotation-{quotation_id}.pdf"})
+
 
 
 @router.post("/{quotation_id}/document", response_model=QuotationResponse)

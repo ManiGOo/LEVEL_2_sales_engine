@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useCallback, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useCallback, useState, useRef, type ReactNode } from 'react'
 import type { User, AuthTokens } from '@/types/api'
 
 interface AuthContextType {
@@ -7,12 +7,13 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
+  refresh: () => Promise<string>
   isLoading: boolean
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-function isTokenExpired(token: string): boolean {
+export function isTokenExpired(token: string): boolean {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
     return payload.exp * 1000 < Date.now()
@@ -25,9 +26,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [tokens, setTokens] = useState<AuthTokens | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const tokensRef = useRef<AuthTokens | null>(null)
+  const refreshInFlight = useRef<Promise<string> | null>(null)
+
+  const updateTokens = useCallback((next: AuthTokens) => {
+    tokensRef.current = next
+    setTokens(next)
+    localStorage.setItem('auth_tokens', JSON.stringify(next))
+  }, [])
 
   const logout = useCallback(() => {
     setUser(null)
+    tokensRef.current = null
     setTokens(null)
     localStorage.removeItem('auth_tokens')
     localStorage.removeItem('auth_user')
@@ -38,37 +48,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem('auth_user')
     if (stored && storedUser) {
       const parsedTokens: AuthTokens = JSON.parse(stored)
-      if (isTokenExpired(parsedTokens.access_token)) {
-        localStorage.removeItem('auth_tokens')
-        localStorage.removeItem('auth_user')
-      } else {
-        setTokens(parsedTokens)
-        setUser(JSON.parse(storedUser))
-      }
+      tokensRef.current = parsedTokens
+      setTokens(parsedTokens)
+      setUser(JSON.parse(storedUser))
     }
     setIsLoading(false)
   }, [])
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch('/api/v1/auth/login', {
+  const doRefresh = useCallback(async (): Promise<string> => {
+    const current = tokensRef.current
+    if (!current?.refresh_token) throw new Error('No refresh token')
+    const res = await fetch('/api/v1/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ refresh_token: current.refresh_token }),
     })
-    if (!res.ok) throw new Error('Login failed')
+    if (!res.ok) throw new Error('Refresh failed')
     const data: AuthTokens = await res.json()
-    setTokens(data)
-    localStorage.setItem('auth_tokens', JSON.stringify(data))
+    updateTokens({ access_token: data.access_token, refresh_token: data.refresh_token, token_type: data.token_type })
+    return data.access_token
+  }, [updateTokens])
 
-    const meRes = await fetch('/api/v1/auth/me', {
-      headers: { Authorization: `Bearer ${data.access_token}` },
+  const refresh = useCallback(async (): Promise<string> => {
+    if (refreshInFlight.current) return refreshInFlight.current
+    const p = doRefresh().finally(() => {
+      refreshInFlight.current = null
     })
-    if (meRes.ok) {
-      const meData: User = await meRes.json()
-      setUser(meData)
-      localStorage.setItem('auth_user', JSON.stringify(meData))
-    }
-  }, [])
+    refreshInFlight.current = p
+    return p
+  }, [doRefresh])
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      if (!res.ok) throw new Error('Login failed')
+      const data: AuthTokens = await res.json()
+      updateTokens(data)
+      tokensRef.current = data
+
+      const meRes = await fetch('/api/v1/auth/me', {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      })
+      if (meRes.ok) {
+        const meData: User = await meRes.json()
+        setUser(meData)
+        localStorage.setItem('auth_user', JSON.stringify(meData))
+      }
+    },
+    [updateTokens]
+  )
 
   const register = useCallback(async (email: string, password: string, name: string) => {
     const res = await fetch('/api/v1/auth/register', {
@@ -80,8 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, tokens, login, logout, register, isLoading }),
-    [user, tokens, login, logout, register, isLoading]
+    () => ({ user, tokens, login, logout, register, refresh, isLoading }),
+    [user, tokens, login, logout, register, refresh, isLoading]
   )
 
   return (

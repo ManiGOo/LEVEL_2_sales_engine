@@ -27,6 +27,8 @@ class Quotation(Base):
 
     intro: Mapped[str | None] = mapped_column(Text)  # executive overview
     terms: Mapped[str | None] = mapped_column(Text)  # payment terms & conditions
+    scope: Mapped[str | None] = mapped_column(Text)  # functional scope & architecture
+    modules: Mapped[list] = mapped_column(JSON, default=list)  # structured functional scope modules
     notes: Mapped[str | None] = mapped_column(Text)
 
     line_items: Mapped[list] = mapped_column(JSON, default=list)

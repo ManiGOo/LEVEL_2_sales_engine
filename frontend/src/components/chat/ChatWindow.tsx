@@ -54,14 +54,13 @@ export default function ChatWindow({ messages, isStreaming, onSend, onStop }: Ch
         )}
 
         <AnimatePresence>
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
+          {messages.map((msg, index) => {
+            if (isStreaming && index === messages.length - 1 && msg.role === 'assistant' && !msg.content) {
+              return <TypingIndicator key={`typing-${msg.id}`} />
+            }
+            return <MessageBubble key={msg.id} message={msg} />
+          })}
         </AnimatePresence>
-
-        {isStreaming && messages[messages.length - 1]?.role === 'assistant' && !messages[messages.length - 1]?.content && (
-          <TypingIndicator />
-        )}
       </div>
 
       <div
