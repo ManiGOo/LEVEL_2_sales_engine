@@ -193,8 +193,8 @@ async def update_quotation(
     update = data.model_dump(exclude_unset=True)
     items = None
     if "line_items" in update and update["line_items"] is not None:
-        items = [QuotationLineItem(**it.model_dump()) for it in update["line_items"]]
-        qq.line_items = [it.model_dump() for it in items]
+        items = [QuotationLineItem(**it) for it in update["line_items"]]
+        qq.line_items = update["line_items"]
     else:
         items = [QuotationLineItem(**it) for it in (qq.line_items or [])]
 
@@ -443,8 +443,8 @@ async def render_preview(
 
     update = data.model_dump(exclude_unset=True)
     if "line_items" in update and update["line_items"] is not None:
-        items = [QuotationLineItem(**it.model_dump()) for it in update["line_items"]]
-        q.line_items = [it.model_dump() for it in items]
+        items = [QuotationLineItem(**it) for it in update["line_items"]]
+        q.line_items = update["line_items"]
     else:
         items = [QuotationLineItem(**it) for it in (q.line_items or [])]
     tax_pct = float(update.get("tax_pct", q.tax_pct) or 0)
