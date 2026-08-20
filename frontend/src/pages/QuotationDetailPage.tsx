@@ -22,6 +22,7 @@ import type { Quotation, QuotationInput, QuotationLineItem, QuotationVersionMeta
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/Modal'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { showToast } from '@/components/ui/toast'
 import {
   computeTotals,
@@ -34,6 +35,19 @@ import {
 import { CURRENCIES } from '@/lib/currencies'
 
 type EditableItem = Omit<QuotationLineItem, 'line_total'>
+
+const UNIT_OPTIONS = [
+  'year',
+  'month',
+  'quarter',
+  'half-year',
+  'license',
+  'seat',
+  'user',
+  'project',
+  'one-time',
+  'hour',
+]
 
 export default function QuotationDetailPage() {
   const { id = '' } = useParams()
@@ -62,6 +76,26 @@ export default function QuotationDetailPage() {
   function applyEditable() {
     const doc = iframeRef.current?.contentDocument
     if (doc?.body) doc.body.contentEditable = editing ? 'true' : 'false'
+  }
+
+  function handleIframeLoad() {
+    applyEditable()
+    const doc = iframeRef.current?.contentDocument
+    if (doc && editing) {
+      doc.addEventListener('input', () => {
+        const introEl = doc.querySelector('[data-field="intro"]') as HTMLElement | null
+        const termsEl = doc.querySelector('[data-field="terms"]') as HTMLElement | null
+        setForm((prev) =>
+          prev
+            ? {
+                ...prev,
+                intro: introEl ? introEl.innerHTML : prev.intro,
+                terms: termsEl ? termsEl.innerHTML : prev.terms,
+              }
+            : prev,
+        )
+      })
+    }
   }
 
   useEffect(() => {
@@ -404,23 +438,17 @@ export default function QuotationDetailPage() {
             </div>
             <div className="mt-4 space-y-3">
               <Field label="Executive overview">
-                <textarea
-                  rows={3}
-                  disabled={!editable}
+                <RichTextEditor
                   value={form.intro}
-                  onChange={(e) => setForm({ ...form, intro: e.target.value })}
-                  className={inputCls}
-                  placeholder="Summarize the opportunity and proposed solution…"
+                  disabled={!editable}
+                  onChange={(html) => setForm({ ...form, intro: html })}
                 />
               </Field>
               <Field label="Payment terms & conditions">
-                <textarea
-                  rows={3}
-                  disabled={!editable}
+                <RichTextEditor
                   value={form.terms}
-                  onChange={(e) => setForm({ ...form, terms: e.target.value })}
-                  className={inputCls}
-                  placeholder="e.g. 50% on kickoff, 50% on go-live. Net 30."
+                  disabled={!editable}
+                  onChange={(html) => setForm({ ...form, terms: html })}
                 />
               </Field>
             </div>
@@ -455,7 +483,13 @@ export default function QuotationDetailPage() {
                         <input type="number" step="0.01" disabled={!editable} value={it.qty} onChange={(e) => updateItem(i, { qty: Number(e.target.value) })} className={cellCls} />
                       </td>
                       <td className="px-2 py-1">
-                        <input disabled={!editable} value={it.unit} onChange={(e) => updateItem(i, { unit: e.target.value })} className={cellCls} />
+                        <select disabled={!editable} value={it.unit} onChange={(e) => updateItem(i, { unit: e.target.value })} className={cellCls}>
+                          {UNIT_OPTIONS.map((u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-2 py-1">
                         <input type="number" step="0.01" disabled={!editable} value={it.unit_price} onChange={(e) => updateItem(i, { unit_price: Number(e.target.value) })} className={cellCls} />
@@ -583,13 +617,13 @@ export default function QuotationDetailPage() {
                 </Button>
               </div>
             </div>
-            <iframe
-              ref={iframeRef}
-              title="proposal"
-              srcDoc={previewHtml}
-              onLoad={() => applyEditable()}
-              className="w-full h-[70vh] rounded-xl bg-white"
-            />
+              <iframe
+                ref={iframeRef}
+                title="proposal"
+                srcDoc={previewHtml}
+                onLoad={handleIframeLoad}
+                className="w-full h-[70vh] rounded-xl bg-white"
+              />
           </div>
         )}
       </Modal>

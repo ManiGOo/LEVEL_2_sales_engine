@@ -291,26 +291,38 @@ def render_html(q: QuotationResponse) -> str:
     one_time = [li for li in q.line_items if li.type == "one_time"]
     recurring = [li for li in q.line_items if li.type == "recurring"]
 
+    def line_amt(li):
+        gross = (li.qty or 0) * (li.unit_price or 0)
+        return gross - gross * (li.discount_pct or 0) / 100
+
     def box_items(items):
         if not items:
             return "<li class='muted'>No items in this category.</li>"
         out = ""
         for li in items:
             label = f"<span class='cat'>{li.category}</span>" if li.category else ""
-            disc = f" <span class='disc'>-{li.discount_pct}%</span>" if li.discount_pct else ""
+            disc = f" <span class='disc'>-{li.discount_pct:g}%</span>" if li.discount_pct else ""
             out += (
-                f"<li><div class='li-head'>{label}<span>{li.description or 'Item'}</span>"
-                f"<span class='amt'>{_money(li.line_total, q.currency)}</span></div>"
-                f"<div class='li-sub'>{li.qty} {li.unit}{disc}</div></li>"
+                f"<li><div class='li-head'>{label}<span class='d'>{li.description or 'Item'}</span>"
+                f"<span class='amt'>{_money(line_amt(li), q.currency)}</span></div>"
+                f"<div class='li-sub'>{li.qty:g} {li.unit or ''} × {_money(li.unit_price, q.currency)}{disc}</div></li>"
             )
         return out
 
     def box_total(items):
-        return sum(li.line_total for li in items)
+        return sum(line_amt(li) for li in items)
 
     valid = q.valid_until.isoformat() if q.valid_until else "—"
     issued = q.created_at.strftime("%B %d, %Y") if q.created_at else "—"
     status_label = q.status.title()
+    intro_html = q.intro or (
+        f"This proposal summarizes the proposed solution, commercial scope, and "
+        f"investment for <b>{q.company_name}</b>."
+    )
+    terms_html = q.terms or (
+        "Standard payment terms apply: 50% advance with purchase order, "
+        "40% on UAT completion, 10% on go-live. Net 30."
+    )
 
     tax_rate = q.tax_pct or 0
     tax_row = (
@@ -339,7 +351,13 @@ def render_html(q: QuotationResponse) -> str:
  .prepared .name{{font-size:18px;font-weight:800;color:#0f172a;margin-top:4px}}
  .section{{padding:28px 46px}}
  .section h2{{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#1e3a8a;margin:0 0 14px;font-weight:800}}
- .intro{{color:#334155;font-size:14px;line-height:1.7;white-space:pre-wrap}}
+  .intro{{color:#334155;font-size:14px;line-height:1.7;white-space:pre-wrap}}
+  .prose{{color:#334155;font-size:14px;line-height:1.7;white-space:pre-wrap}}
+  .prose p{{margin:0 0 10px}}
+  .prose ul{{margin:0 0 10px;padding-left:20px;list-style:disc}}
+  .prose ol{{margin:0 0 10px;padding-left:20px;list-style:decimal}}
+  .prose b,.prose strong{{font-weight:700;color:#0f172a}}
+  .prose i,.prose em{{font-style:italic}}
  .boxes{{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:6px}}
  .box{{border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}}
  .box .bh{{background:#0f172a;color:#fff;padding:12px 16px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}}
@@ -366,11 +384,11 @@ def render_html(q: QuotationResponse) -> str:
  @media (max-width:640px){{.boxes,.sign{{grid-template-columns:1fr}} .totals{{width:100%}}}}
 </style></head>
 <body><div class="sheet">
- <div class="top">
-  <div class="eyebrow">Commercial Proposal</div>
-  <h1>{q.title}</h1>
-  <div class="sub">Prepared for {q.company_name}</div>
- </div>
+  <div class="top">
+   <div class="eyebrow">Quotation · {q.quote_number}</div>
+   <h1>{q.title}</h1>
+   <div class="sub">Prepared for {q.company_name}</div>
+  </div>
  <div class="meta">
   <div><b>Proposal Ref</b><span class="val">{q.quote_number}</span></div>
   <div><b>Date</b><span class="val">{issued}</span></div>
@@ -382,10 +400,10 @@ def render_html(q: QuotationResponse) -> str:
   <div class="lbl">Prepared For</div>
   <div class="name">{q.company_name}</div>
  </div>
- <div class="section">
-  <h2>1 · Executive Overview</h2>
-  <div class="intro">{q.intro or '—'}</div>
- </div>
+  <div class="section">
+   <h2>1 · Executive Overview</h2>
+   <div class="prose" data-field="intro">{intro_html}</div>
+  </div>
  <div class="section">
   <h2>2 · Investment Summary</h2>
   <div class="boxes">
@@ -407,10 +425,10 @@ def render_html(q: QuotationResponse) -> str:
     <div class="row grand"><span>Total Investment</span><span>{_money(q.total, q.currency)}</span></div>
    </div>
  </div>
- <div class="section terms">
-  <h2>3 · Payment Terms &amp; Conditions</h2>
-  {q.terms or 'Standard payment terms apply. 50% advance with purchase order, 40% on UAT completion, 10% on go-live. Net 30.'}
- </div>
+  <div class="section terms">
+   <h2>3 · Payment Terms &amp; Conditions</h2>
+   <div class="prose" data-field="terms">{terms_html}</div>
+  </div>
  <div class="section">
   <h2>4 · Acceptance &amp; Authorization</h2>
   <p class="muted" style="font-size:13px;margin:0 0 16px">By signing below, the parties agree to the scope, commercial terms, and conditions outlined in this proposal.</p>
