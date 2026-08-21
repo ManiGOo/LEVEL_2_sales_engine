@@ -62,7 +62,7 @@ export default function CompanyDetailPage() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 lg:space-y-6">
       <Link
-        to="/companies"
+        to="/accounts/cdsco-s-fda"
         className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
       >
         <ArrowLeft size={16} />

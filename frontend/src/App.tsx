@@ -11,6 +11,7 @@ import DashboardPage from '@/pages/DashboardPage'
 import ChatPage from '@/pages/ChatPage'
 import AccountsPage from '@/pages/AccountsPage'
 import CompanyDetailPage from '@/pages/CompanyDetailPage'
+import GeneralCompanyDetailPage from '@/pages/GeneralCompanyDetailPage'
 import LeadsPage from '@/pages/LeadsPage'
 import CampaignsPage from '@/pages/CampaignsPage'
 import CampaignDetailPage from '@/pages/CampaignDetailPage'
@@ -70,6 +71,7 @@ function AppRoutes() {
         <Route path="/accounts" element={<Navigate to="/accounts/sales-qualified" replace />} />
         <Route path="/accounts/:tab" element={<AccountsPage />} />
         <Route path="/accounts/cdsco-s-fda/:slug" element={<CompanyDetailPage />} />
+        <Route path="/accounts/general/:companyKey" element={<GeneralCompanyDetailPage />} />
         <Route path="/accounts/sales-qualified/:companyKey" element={<AccountDetailPage />} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/campaigns" element={<CampaignsPage />} />

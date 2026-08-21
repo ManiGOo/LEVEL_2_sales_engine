@@ -122,7 +122,7 @@ export default function SalesQualifiedView() {
               >
                 <div className="flex flex-col sm:flex-row items-stretch gap-2">
                   <Link
-                    to={`/accounts/${acc.company_key}`}
+                    to={`/accounts/sales-qualified/${acc.company_key}`}
                     className="glass glass-hover rounded-xl p-4 flex items-center gap-4 group transition-all flex-1"
                   >
                   <div className="min-w-0 flex-1">
@@ -164,7 +164,7 @@ export default function SalesQualifiedView() {
                   <ChevronRight size={16} className="text-slate-600 group-hover:text-indigo-400 transition-colors shrink-0 hidden sm:block" />
                   </Link>
                   <Link
-                    to={`/accounts/${acc.company_key}`}
+                    to={`/accounts/sales-qualified/${acc.company_key}`}
                     title="Edit workflow"
                     className="flex flex-col sm:flex-row items-stretch shrink-0"
                   >

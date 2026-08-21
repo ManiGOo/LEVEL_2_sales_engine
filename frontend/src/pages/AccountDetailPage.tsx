@@ -316,7 +316,7 @@ export default function AccountDetailPage() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto mt-2 sm:mt-0">
-          <Link to={`/companies/general/${companyKey}`} className="flex">
+          <Link to={`/accounts/general/${companyKey}`} className="flex">
             <Button variant="outline" size="sm" className="w-full">
               <ExternalLink size={14} /> Company profile
             </Button>
