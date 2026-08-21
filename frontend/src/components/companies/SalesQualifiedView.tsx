@@ -15,7 +15,7 @@ import Pagination from '@/components/ui/Pagination'
 
 const PAGE_SIZE = 30
 
-export default function AccountsPage() {
+export default function SalesQualifiedView() {
   const { fetchApi } = useApi()
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
@@ -55,12 +55,6 @@ export default function AccountsPage() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Accounts</h1>
-        <p className="text-slate-400 text-sm mt-1">
-          {data?.total != null ? `${data.total.toLocaleString()} accounts` : 'Companies'} with their sales-process workflow
-        </p>
-      </div>
 
       <form
         onSubmit={submitSearch}

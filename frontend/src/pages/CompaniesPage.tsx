@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { showToast } from '@/components/ui/toast'
 import SegmentedTabs from '@/components/general/SegmentedTabs'
 import GeneralCompaniesView from '@/components/general/GeneralCompaniesView'
+import SalesQualifiedView from '@/components/companies/SalesQualifiedView'
 import Pagination from '@/components/ui/Pagination'
 
 const PAGE_SIZE = 30
@@ -26,7 +27,7 @@ const selectCls =
 
 export default function CompaniesPage() {
   const { fetchApi } = useApi()
-  const [tab, setTab] = useState('automated')
+  const [tab, setTab] = useState('sales_qualified')
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
@@ -139,6 +140,7 @@ export default function CompaniesPage() {
 
       <SegmentedTabs
         tabs={[
+          { key: 'sales_qualified', label: 'Sales Qualified' },
           { key: 'automated', label: 'CDSCO / S-FDA' },
           { key: 'general', label: 'General' },
         ]}
@@ -148,6 +150,8 @@ export default function CompaniesPage() {
 
       {tab === 'general' ? (
         <GeneralCompaniesView />
+      ) : tab === 'sales_qualified' ? (
+        <SalesQualifiedView />
       ) : (
       <>
 

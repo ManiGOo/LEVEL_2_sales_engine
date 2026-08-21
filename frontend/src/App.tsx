@@ -15,7 +15,6 @@ import GeneralCompanyDetailPage from '@/pages/GeneralCompanyDetailPage'
 import LeadsPage from '@/pages/LeadsPage'
 import CampaignsPage from '@/pages/CampaignsPage'
 import CampaignDetailPage from '@/pages/CampaignDetailPage'
-import AccountsPage from '@/pages/AccountsPage'
 import AccountDetailPage from '@/pages/AccountDetailPage'
 import QuotationsPage from '@/pages/QuotationsPage'
 import QuotationDetailPage from '@/pages/QuotationDetailPage'
@@ -75,7 +74,6 @@ function AppRoutes() {
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/campaigns/:campaignId" element={<CampaignDetailPage />} />
-      <Route path="/accounts" element={<AccountsPage />} />
       <Route path="/accounts/:companyKey" element={<AccountDetailPage />} />
       <Route path="/quotations" element={<QuotationsPage />} />
       <Route path="/quotations/:id" element={<QuotationDetailPage />} />
