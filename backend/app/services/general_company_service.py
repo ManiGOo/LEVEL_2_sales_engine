@@ -37,6 +37,7 @@ async def create_general_company(
         revenue=(data.revenue or "").strip() or None,
         email=(data.email or "").strip() or None,
         phone=(data.phone or "").strip() or None,
+        source=data.source,
         hiring_headline=(data.hiring_headline or "").strip() or None,
         activity_summary=(data.activity_summary or "").strip() or None,
         notes=(data.notes or "").strip() or None,
