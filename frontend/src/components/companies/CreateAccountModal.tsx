@@ -101,7 +101,7 @@ export default function CreateAccountModal({
     e.preventDefault()
     setError('')
     if (!name.trim()) {
-      setError('Company name is required.')
+      setError('Account name is required.')
       return
     }
     setSaving(true)
@@ -254,7 +254,7 @@ export default function CreateAccountModal({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this company do?"
+              placeholder="What does this account do?"
               rows={3}
               className={cn(inputClass, 'resize-y')}
             />
@@ -278,7 +278,7 @@ export default function CreateAccountModal({
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-semibold text-white transition-colors"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
-            {saving ? 'Saving…' : 'Create company'}
+            {saving ? 'Saving…' : 'Create account'}
           </button>
         </div>
       </form>

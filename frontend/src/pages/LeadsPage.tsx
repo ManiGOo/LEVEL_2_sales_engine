@@ -24,8 +24,7 @@ import { cn } from '@/lib/utils'
 import { Modal } from '@/components/ui/Modal'
 import { LeadResultContent, LeadPlaceholderCard } from '@/components/leads/LeadResultContent'
 import { showToast, dismissToast } from '@/components/ui/toast'
-import SegmentedTabs from '@/components/general/SegmentedTabs'
-import CreateLeadFromCompanyView from '@/components/general/CreateLeadFromCompanyView'
+
 import Pagination from '@/components/ui/Pagination'
 
 const PAGE_SIZE = 30
@@ -264,7 +263,7 @@ function CompanyCard({
 export default function LeadsPage() {
   const { fetchApi } = useApi()
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState('discover')
+
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
@@ -455,19 +454,7 @@ export default function LeadsPage() {
         </p>
       </div>
 
-      <SegmentedTabs
-        tabs={[
-          { key: 'discover', label: 'CDSCO / S-FDA' },
-          { key: 'general', label: 'General leads' },
-        ]}
-        active={tab}
-        onChange={setTab}
-      />
 
-      {tab === 'general' ? (
-        <CreateLeadFromCompanyView />
-      ) : (
-      <>
 
       <form
         onSubmit={submitSearch}
@@ -753,8 +740,7 @@ export default function LeadsPage() {
             return <LeadResultContent lead={lead} />
           })()}
       </Modal>
-      </>
-      )}
+
     </motion.div>
   )
 }
