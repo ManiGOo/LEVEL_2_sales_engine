@@ -43,6 +43,21 @@ export interface SignalPage {
   paper_count?: number
 }
 
+export interface Contact {
+  name: string
+  title: string
+  source: string
+  company_name: string
+  company_key: string
+}
+
+export interface ContactsPageResponse {
+  items: Contact[]
+  page: number
+  page_size: number
+  total_count: number
+}
+
 export interface Company {
   company_key: string
   name: string

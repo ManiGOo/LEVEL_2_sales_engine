@@ -20,6 +20,7 @@ import AccountDetailPage from '@/pages/AccountDetailPage'
 import QuotationsPage from '@/pages/QuotationsPage'
 import QuotationDetailPage from '@/pages/QuotationDetailPage'
 import ProfilePage from '@/pages/ProfilePage'
+import ContactsPage from '@/pages/ContactsPage'
 import { Toaster } from '@/components/ui/Toast'
 import AppLoader from '@/components/AppLoader'
 import type { ReactNode } from 'react'
@@ -79,6 +80,7 @@ function AppRoutes() {
       <Route path="/quotations" element={<QuotationsPage />} />
       <Route path="/quotations/:id" element={<QuotationDetailPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/contacts" element={<ContactsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
