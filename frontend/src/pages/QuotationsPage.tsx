@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Search, FileText, Plus, ArrowRight, Check } from 'lucide-react'
+import { Search, FileText, Plus, ArrowRight, X } from 'lucide-react'
 import { useApi } from '@/hooks/useApi'
 import type { QuotationListPage, AccountListPage, QuotationInput } from '@/types/api'
 import { Badge } from '@/components/ui/badge'
@@ -22,20 +22,24 @@ export default function QuotationsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(PAGE_SIZE)
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<StatusFilter>('')
   const [createOpen, setCreateOpen] = useState(false)
 
   async function load() {
-    const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) })
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
     if (search) params.set('q', search)
     if (status) params.set('status', status)
     const res = await fetchApi(`/api/v1/quotations?${params.toString()}`)
     return (await res.json()) as QuotationListPage
   }
 
-  const { data } = useQuery({ queryKey: ['quotations', page, search, status], queryFn: load })
+  const { data } = useQuery({
+    queryKey: ['quotations', page, pageSize, search, status],
+    queryFn: load,
+  })
 
   const createMutation = useMutation({
     mutationFn: async (input: QuotationInput) => {
@@ -55,7 +59,7 @@ export default function QuotationsPage() {
   })
 
   const pages = Math.max(data?.pages || 1, 1)
-  const start = (page - 1) * PAGE_SIZE + 1
+  const start = (page - 1) * pageSize + 1
   const shown = data?.items.length || 0
 
   function submitSearch(e: React.FormEvent) {
@@ -153,6 +157,12 @@ export default function QuotationsPage() {
           total={data.total}
           onPrev={() => setPage((p) => Math.max(1, p - 1))}
           onNext={() => setPage((p) => Math.min(pages, p + 1))}
+          onPage={(p) => setPage(p)}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size)
+            setPage(1)
+          }}
         />
       )}
 
@@ -183,15 +193,15 @@ function CreateQuotationModal({
   const [selected, setSelected] = useState<{ company_key: string; company_name: string } | null>(null)
   const [templateId, setTemplateId] = useState('custom')
   const [currency, setCurrency] = useState('USD')
-
-  async function load(query: string) {
-    const params = new URLSearchParams({ q: query.trim(), page_size: '50' })
-    const res = await fetchApi(`/api/v1/accounts?${params.toString()}`)
-    setResults((await res.json()) as AccountListPage)
-  }
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   useEffect(() => {
-    if (open) load('')
+    if (open) {
+      setQ('')
+      setResults(null)
+      setSelected(null)
+      setDropdownOpen(false)
+    }
   }, [open])
 
   useEffect(() => {
@@ -199,10 +209,20 @@ function CreateQuotationModal({
     if (tpl?.defaults) setCurrency(tpl.defaults.currency)
   }, [templateId])
 
-  async function search(e: React.FormEvent) {
-    e.preventDefault()
-    await load(q)
-  }
+  // Debounced search-as-you-type against the accounts endpoint.
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const t = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ q: q.trim(), page_size: '20' })
+        const res = await fetchApi(`/api/v1/accounts?${params.toString()}`)
+        setResults((await res.json()) as AccountListPage)
+      } catch {
+        setResults(null)
+      }
+    }, 250)
+    return () => clearTimeout(t)
+  }, [q, dropdownOpen])
 
   function confirm() {
     if (!selected) return
@@ -232,6 +252,8 @@ function CreateQuotationModal({
       status: 'draft',
     })
   }
+
+  const showDropdown = dropdownOpen && (results?.items.length ? true : q.trim().length > 0)
 
   return (
     <Modal open={open} onClose={onClose} title="New quotation">
@@ -267,33 +289,61 @@ function CreateQuotationModal({
         </div>
       )}
 
-      <form onSubmit={search} className="flex items-center gap-2 mb-4">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search account / company..."
-          className="flex-1 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <Button type="submit" variant="secondary">Search</Button>
-      </form>
-
-      <div className="max-h-72 overflow-y-auto space-y-1">
-        {!results && <p className="text-sm text-slate-400">Search for an account to attach the quote to.</p>}
-        {results?.items.map((a) => (
-          <button
-            key={a.company_key}
-            onClick={() => setSelected({ company_key: a.company_key, company_name: a.name })}
-            className={`w-full text-left px-3 py-2 rounded-lg border text-sm flex items-center justify-between ${
-              selected?.company_key === a.company_key
-                ? 'border-indigo-500 bg-indigo-500/10 text-white'
-                : 'border-slate-700 text-slate-200 hover:bg-slate-800'
-            }`}
-          >
-            <span>{a.name}</span>
-            {selected?.company_key === a.company_key && <Check className="w-4 h-4 text-indigo-300" />}
-          </button>
-        ))}
-        {results && !results.items.length && <p className="text-sm text-slate-400">No accounts found.</p>}
+      <div className="mb-4">
+        <label className="block text-xs font-medium text-slate-300 mb-1">Account / Company</label>
+        {selected ? (
+          <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/15 text-indigo-200 px-3 py-1 text-sm">
+            {selected.company_name}
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              className="hover:text-white"
+              title="Clear selection"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value)
+                setDropdownOpen(true)
+              }}
+              onFocus={() => setDropdownOpen(true)}
+              onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
+              placeholder="Search account / company..."
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            {showDropdown && (
+              <div className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                {results?.items.length ? (
+                  results.items.map((a) => (
+                    <button
+                      key={a.company_key}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setSelected({ company_key: a.company_key, company_name: a.name })
+                        setQ('')
+                        setDropdownOpen(false)
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 border-b border-slate-800 last:border-0"
+                    >
+                      {a.name}
+                    </button>
+                  ))
+                ) : results ? (
+                  <p className="text-sm text-slate-400 px-3 py-3">No accounts found.</p>
+                ) : (
+                  <p className="text-sm text-slate-400 px-3 py-3">Searching…</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-5 flex justify-end gap-2">

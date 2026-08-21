@@ -247,8 +247,8 @@ function CompanyCard({
 
         <StatusPill lead={lead} />
         <ScoreGauge score={company.score} size={32} showMaxLabel={false} className="hidden sm:flex" />
-        <Link 
-          to={`/companies/${company.slug}`}
+        <Link
+          to={`/accounts/cdsco-s-fda/${company.slug}`}
           onClick={(e) => e.stopPropagation()}
           className="p-1.5 -mr-1.5 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
           title="Go to Company Page"
