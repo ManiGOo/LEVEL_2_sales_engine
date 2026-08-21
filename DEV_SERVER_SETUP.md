@@ -239,9 +239,13 @@ docker logs -f sales-app-backend-1      # backend API
 
 ### Update after code changes
 
+**CRITICAL NOTE**: The `frontend` and `backend` containers use baked-in images (`COPY . .` in Dockerfile), not live volume mounts. Any time you pull new code or make changes, you **must** rebuild the specific containers for the changes to take effect:
+
 ```bash
-cd ~/sales-app && git pull && docker compose up -d --build
+cd ~/sales-app && git pull
+docker compose up -d --build frontend backend
 ```
+*(If you omit `--build`, Docker will just restart the old images without the new code.)*
 
 ### Stop everything
 
@@ -281,3 +285,16 @@ docker logs sales-app-lead_worker-1 | tail -5
 | Worker won't connect to Temporal | Inside containers it must reach `host.docker.internal:7233` (Linux uses `extra_hosts: host.docker.internal:host-gateway` in compose) |
 | Build cache bloated | `docker builder prune -af` |
 | Out of disk | `docker system prune -af --volumes` (careful — removes unused data) |
+
+---
+
+## 8) Recent Application Features (Changelog)
+
+As of the latest updates, the following features have been integrated into the app:
+- **Date Persistence on Quotations**: Quotation dates are now fully manageable and persistently saved in the DB, visible on the quotation form and preview.
+- **Dark/Light Theme Toggle**: Implemented a global dark/light mode toggle in the `ProfilePage` using standard Tailwind CSS variables and React Context.
+- **Mobile Responsive Enhancements**:
+  - `AccountsPage` lists stack elegantly into vertical cards on mobile devices.
+  - `AccountDetailPage` action buttons wrap dynamically instead of overflowing.
+  - The `WorkflowBoard` inputs and forms are optimized for narrow screens.
+- **Dashboard Notifications**: The Dashboard now prominently features real-time dynamic "div boxes" showing the latest global Workflow Alerts and the most recently updated Quotation.
