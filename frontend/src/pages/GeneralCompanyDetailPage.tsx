@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
 import type { GeneralCompany } from '@/types/api'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +9,9 @@ import { TextContentSkeleton } from '@/components/ui/ResourceLoader'
 import { LeadResultContent } from '@/components/leads/LeadResultContent'
 import { toLead } from '@/lib/generalCompany'
 import { motion } from 'motion/react'
-import { ArrowLeft, Building2, Globe, Mail, Phone, ClipboardList, MapPin, Factory, DollarSign } from 'lucide-react'
+import { Modal } from '@/components/ui/Modal'
+import { showToast } from '@/components/ui/toast'
+import { ArrowLeft, Building2, Globe, Mail, Phone, ClipboardList, MapPin, Factory, DollarSign, Plus } from 'lucide-react'
 
 function LinkedInIcon({ size = 14 }: { size?: number }) {
   return (
@@ -32,6 +35,13 @@ function StatBox({ label, value }: { label: string; value: string }) {
 export default function GeneralCompanyDetailPage() {
   const { companyKey } = useParams<{ companyKey: string }>()
   const { fetchApi } = useApi()
+  const queryClient = useQueryClient()
+
+  const [isAddingContact, setIsAddingContact] = useState(false)
+  const [addName, setAddName] = useState('')
+  const [addTitle, setAddTitle] = useState('')
+  const [addEmail, setAddEmail] = useState('')
+  const [addLinkedin, setAddLinkedin] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['general-company', companyKey],
@@ -55,6 +65,35 @@ export default function GeneralCompanyDetailPage() {
   if (!data) return null
 
   const gc = data
+
+  async function handleAddContact(e: React.FormEvent) {
+    e.preventDefault()
+    showToast({ title: 'Adding contact...', variant: 'progress' })
+    try {
+      const res = await fetchApi(`/api/v1/contacts/${companyKey}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          company_name: gc.name,
+          name: addName.trim(),
+          title: addTitle.trim(),
+          email: addEmail.trim() || undefined,
+          linkedin_url: addLinkedin.trim() || undefined,
+        })
+      })
+      if (!res.ok) throw new Error('Failed to add contact')
+      
+      showToast({ title: 'Contact added!', variant: 'success' })
+      setIsAddingContact(false)
+      setAddName('')
+      setAddTitle('')
+      setAddEmail('')
+      setAddLinkedin('')
+      // Invalidate general-company to refresh the contacts list if the backend returns it
+      queryClient.invalidateQueries({ queryKey: ['general-company', companyKey] })
+    } catch (err: any) {
+      showToast({ title: 'Error adding contact', variant: 'error' })
+    }
+  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 lg:space-y-6">
@@ -182,11 +221,17 @@ export default function GeneralCompanyDetailPage() {
       {/* Lead detail */}
       <Card className="overflow-hidden">
         <CardContent className="p-0">
-          <div className="px-5 pt-5">
+          <div className="px-5 pt-5 flex items-center justify-between">
             <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold flex items-center gap-1.5">
               <ClipboardList size={12} />
               Company research
             </p>
+            <button 
+              onClick={() => setIsAddingContact(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-xs font-medium transition-colors"
+            >
+              <Plus size={14} /> Add Contact
+            </button>
           </div>
           <LeadResultContent lead={toLead(gc)} />
         </CardContent>
@@ -203,6 +248,63 @@ export default function GeneralCompanyDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <Modal open={isAddingContact} title="Add Contact" onClose={() => setIsAddingContact(false)}>
+        <form onSubmit={handleAddContact} className="space-y-4 p-4 lg:p-6">
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1">Name</label>
+            <input 
+              type="text" 
+              value={addName}
+              onChange={(e) => setAddName(e.target.value)}
+              className="w-full bg-slate-900 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1">Title</label>
+            <input 
+              type="text" 
+              value={addTitle}
+              onChange={(e) => setAddTitle(e.target.value)}
+              className="w-full bg-slate-900 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1">Email</label>
+            <input 
+              type="email" 
+              value={addEmail}
+              onChange={(e) => setAddEmail(e.target.value)}
+              className="w-full bg-slate-900 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1">LinkedIn URL</label>
+            <input 
+              type="url" 
+              value={addLinkedin}
+              onChange={(e) => setAddLinkedin(e.target.value)}
+              className="w-full bg-slate-900 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-3 mt-6">
+            <button 
+              type="button" 
+              onClick={() => setIsAddingContact(false)}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
+            >
+              Add Contact
+            </button>
+          </div>
+        </form>
+      </Modal>
     </motion.div>
   )
 }

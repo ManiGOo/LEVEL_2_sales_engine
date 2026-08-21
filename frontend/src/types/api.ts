@@ -312,6 +312,7 @@ export interface GeneralCompany {
   revenue: string
   email: string
   phone: string
+  source: string
   phones_labeled?: { phone: string, label: string, page_url?: string }[]
   hiring_headline: string
   activity_summary: string
@@ -384,6 +385,7 @@ export interface AccountDetail {
   company_name: string | null
   owner_id: string | null
   owner_email: string | null
+  source: string
   stages: AccountStage[]
 }
 

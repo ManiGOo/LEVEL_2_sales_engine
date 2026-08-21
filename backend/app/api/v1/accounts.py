@@ -164,6 +164,7 @@ async def import_companies(
             GeneralCompanyCreate(
                 name=name,
                 location=(item.location or "").strip() or None,
+                source="cdsco",
             ),
             user,
         )

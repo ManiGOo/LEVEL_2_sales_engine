@@ -30,6 +30,13 @@ class ContactUpdateRequest(BaseModel):
     email: Optional[str] = None
     linkedin_url: Optional[str] = None
 
+class ContactCreateRequest(BaseModel):
+    company_name: str
+    name: str
+    title: str
+    email: Optional[str] = None
+    linkedin_url: Optional[str] = None
+
 @router.get("", response_model=ContactsPageResponse)
 async def get_contacts(
     page: int = Query(1, ge=1),
@@ -124,6 +131,44 @@ async def update_contact(
         if not updated:
             raise HTTPException(status_code=404, detail="Contact not found")
             
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(lead, "decision_makers")
+        db.commit()
+        return {"status": "ok"}
+    finally:
+        db.close()
+
+
+@router.post("/{company_key}")
+async def create_contact(
+    company_key: str,
+    payload: ContactCreateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    db = SessionLocal()
+    try:
+        lead = db.query(CompanyLead).filter(CompanyLead.company_key == company_key).first()
+        if not lead:
+            # Create a new CompanyLead for manual accounts if it doesn't exist
+            lead = CompanyLead(
+                company_key=company_key,
+                company_name=payload.company_name,
+                decision_makers=[],
+                source="manual"
+            )
+            db.add(lead)
+            
+        makers = list(lead.decision_makers or [])
+        makers.append({
+            "name": payload.name,
+            "role": payload.title,
+            "email": payload.email,
+            "linkedin_url": payload.linkedin_url,
+            "source": "manual"
+        })
+        
+        lead.decision_makers = makers
+        
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(lead, "decision_makers")
         db.commit()

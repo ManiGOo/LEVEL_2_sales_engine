@@ -22,6 +22,7 @@ class GeneralCompany(Base):
     revenue: Mapped[str | None] = mapped_column(String(100))
     email: Mapped[str | None] = mapped_column(String(255))
     phone: Mapped[str | None] = mapped_column(String(100))
+    source: Mapped[str] = mapped_column(String(50), server_default="manual")
 
     hiring_headline: Mapped[str | None] = mapped_column(String(500))
     activity_summary: Mapped[str | None] = mapped_column(Text)

@@ -167,6 +167,7 @@ async def get_account(db: AsyncSession, company_key: str) -> AccountDetail | Non
         company_name=company.name,
         owner_id=company.account_owner_id,
         owner_email=company.account_owner_email,
+        source=company.source,
         stages=responses,
     )
 

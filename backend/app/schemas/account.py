@@ -56,6 +56,7 @@ class AccountDetail(BaseModel):
     company_name: str | None = None
     owner_id: str | None = None
     owner_email: str | None = None
+    source: str = "manual"
     stages: list[AccountStageResponse]
 
 

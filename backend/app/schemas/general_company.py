@@ -44,6 +44,7 @@ class GeneralCompanyCreate(BaseModel):
     revenue: str | None = None
     email: str | None = None
     phone: str | None = None
+    source: str = "manual"
 
     hiring_headline: str | None = None
     activity_summary: str | None = None
@@ -82,6 +83,7 @@ class GeneralCompanyResponse(BaseModel):
     revenue: str | None = None
     email: str | None = None
     phone: str | None = None
+    source: str
     hiring_headline: str | None = None
     activity_summary: str | None = None
     notes: str | None = None
