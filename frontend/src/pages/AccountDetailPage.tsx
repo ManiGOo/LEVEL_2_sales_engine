@@ -315,16 +315,16 @@ export default function AccountDetailPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link to={`/companies/general/${companyKey}`}>
-            <Button variant="outline" size="sm">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto mt-2 sm:mt-0">
+          <Link to={`/companies/general/${companyKey}`} className="flex">
+            <Button variant="outline" size="sm" className="w-full">
               <ExternalLink size={14} /> Company profile
             </Button>
           </Link>
-          <Button variant="secondary" size="sm" onClick={() => setTemplateOpen(true)} disabled={isFetching || !canEdit}>
+          <Button variant="secondary" size="sm" onClick={() => setTemplateOpen(true)} disabled={isFetching || !canEdit} className="w-full sm:w-auto">
             <LayoutTemplate size={14} /> Apply template
           </Button>
-          <Button size="sm" onClick={openCreate} disabled={isFetching || !canEdit}>
+          <Button size="sm" onClick={openCreate} disabled={isFetching || !canEdit} className="w-full sm:w-auto">
             <Plus size={14} /> Add stage
           </Button>
         </div>

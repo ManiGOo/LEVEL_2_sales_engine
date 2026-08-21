@@ -126,7 +126,7 @@ export default function AccountsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(i * 0.02, 0.3) }}
               >
-                <div className="flex items-stretch gap-2">
+                <div className="flex flex-col sm:flex-row items-stretch gap-2">
                   <Link
                     to={`/accounts/${acc.company_key}`}
                     className="glass glass-hover rounded-xl p-4 flex items-center gap-4 group transition-all flex-1"
@@ -167,14 +167,14 @@ export default function AccountsPage() {
                     )}
                   </div>
 
-                  <ChevronRight size={16} className="text-slate-600 group-hover:text-indigo-400 transition-colors shrink-0" />
+                  <ChevronRight size={16} className="text-slate-600 group-hover:text-indigo-400 transition-colors shrink-0 hidden sm:block" />
                   </Link>
                   <Link
                     to={`/accounts/${acc.company_key}`}
                     title="Edit workflow"
-                    className="flex items-center shrink-0"
+                    className="flex flex-col sm:flex-row items-stretch shrink-0"
                   >
-                    <Button variant="outline" size="sm" className="self-center">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto h-full sm:self-center">
                       <Pencil size={14} /> Edit workflow
                     </Button>
                   </Link>
