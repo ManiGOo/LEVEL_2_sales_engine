@@ -153,8 +153,7 @@ async def create_contact(
             lead = CompanyLead(
                 company_key=company_key,
                 company_name=payload.company_name,
-                decision_makers=[],
-                source="manual"
+                decision_makers=[]
             )
             db.add(lead)
             
