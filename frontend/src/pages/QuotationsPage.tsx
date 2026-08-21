@@ -104,7 +104,7 @@ export default function QuotationsPage() {
         <Button type="submit" variant="secondary">Search</Button>
       </form>
 
-      <div className="rounded-2xl border border-slate-700/60 bg-slate-800/40 overflow-hidden">
+      <div className="rounded-2xl border border-slate-700/60 bg-slate-800/40 overflow-x-auto">
         {!data?.items.length ? (
           <div className="p-10 text-center text-slate-400">
             <FileText className="w-9 h-9 mx-auto mb-2 opacity-50" />
