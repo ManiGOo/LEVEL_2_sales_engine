@@ -10,7 +10,7 @@ import { LeadResultContent } from '@/components/leads/LeadResultContent'
 import { toLead } from '@/lib/generalCompany'
 import { motion } from 'motion/react'
 import { Modal } from '@/components/ui/Modal'
-import { showToast } from '@/components/ui/toast'
+import { showToast, dismissToast } from '@/components/ui/toast'
 import { ArrowLeft, Building2, Globe, Mail, Phone, ClipboardList, MapPin, Factory, DollarSign, Plus } from 'lucide-react'
 
 function LinkedInIcon({ size = 14 }: { size?: number }) {
@@ -68,7 +68,7 @@ export default function GeneralCompanyDetailPage() {
 
   async function handleAddContact(e: React.FormEvent) {
     e.preventDefault()
-    showToast({ title: 'Adding contact...', variant: 'progress' })
+    const toastId = showToast({ title: 'Adding contact...', variant: 'progress' })
     try {
       const res = await fetchApi(`/api/v1/contacts/${companyKey}`, {
         method: 'POST',
@@ -82,6 +82,7 @@ export default function GeneralCompanyDetailPage() {
       })
       if (!res.ok) throw new Error('Failed to add contact')
       
+      dismissToast(toastId)
       showToast({ title: 'Contact added!', variant: 'success' })
       setIsAddingContact(false)
       setAddName('')
@@ -91,6 +92,7 @@ export default function GeneralCompanyDetailPage() {
       // Invalidate general-company to refresh the contacts list if the backend returns it
       queryClient.invalidateQueries({ queryKey: ['general-company', companyKey] })
     } catch (err: any) {
+      dismissToast(toastId)
       showToast({ title: 'Error adding contact', variant: 'error' })
     }
   }

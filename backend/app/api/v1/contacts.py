@@ -158,18 +158,28 @@ async def create_contact(
             db.add(lead)
             
         makers = list(lead.decision_makers or [])
-        makers.append({
+        contact = {
             "name": payload.name,
             "role": payload.title,
             "email": payload.email,
             "linkedin_url": payload.linkedin_url,
             "source": "manual"
-        })
-        
+        }
+        makers.append(contact)
         lead.decision_makers = makers
         
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(lead, "decision_makers")
+
+        # Also add it to GeneralCompany if it exists
+        from app.models.general_company import GeneralCompany
+        gc = db.query(GeneralCompany).filter(GeneralCompany.company_key == company_key).first()
+        if gc:
+            gc_makers = list(gc.decision_makers or [])
+            gc_makers.append(contact)
+            gc.decision_makers = gc_makers
+            flag_modified(gc, "decision_makers")
+
         db.commit()
         return {"status": "ok"}
     finally:
