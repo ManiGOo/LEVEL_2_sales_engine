@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/providers/AuthProvider'
 import { QueryProvider } from '@/providers/QueryProvider'
+import { ThemeProvider } from '@/providers/ThemeProvider'
 import { useIsFetching } from '@tanstack/react-query'
 import AuthLayout from '@/layouts/AuthLayout'
 import DashboardLayout from '@/layouts/DashboardLayout'
@@ -41,9 +42,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <QueryProvider>
-          <AppRoutes />
-        </QueryProvider>
+        <ThemeProvider>
+          <QueryProvider>
+            <AppRoutes />
+          </QueryProvider>
+        </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
   )
