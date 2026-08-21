@@ -14,6 +14,8 @@ class ContactResponse(BaseModel):
     source: str
     company_name: str
     company_key: str
+    email: Optional[str] = None
+    linkedin_url: Optional[str] = None
 
 class ContactsPageResponse(BaseModel):
     items: List[ContactResponse]
@@ -25,6 +27,8 @@ class ContactUpdateRequest(BaseModel):
     old_name: str
     new_name: str
     new_title: str
+    email: Optional[str] = None
+    linkedin_url: Optional[str] = None
 
 @router.get("", response_model=ContactsPageResponse)
 async def get_contacts(
@@ -40,11 +44,15 @@ async def get_contacts(
         name_col = func.jsonb_extract_path_text(dm.column, "name")
         title_col = func.jsonb_extract_path_text(dm.column, "role")
         source_col = func.jsonb_extract_path_text(dm.column, "source")
+        email_col = func.jsonb_extract_path_text(dm.column, "email")
+        linkedin_col = func.jsonb_extract_path_text(dm.column, "linkedin_url")
         
         stmt = select(
             name_col.label("name"),
             title_col.label("title"),
             source_col.label("source"),
+            email_col.label("email"),
+            linkedin_col.label("linkedin_url"),
             CompanyLead.company_name,
             CompanyLead.company_key
         ).select_from(CompanyLead).join(dm, true())
@@ -75,7 +83,9 @@ async def get_contacts(
                     title=row.title or "",
                     source=row.source or "unknown",
                     company_name=row.company_name or "",
-                    company_key=row.company_key or ""
+                    company_key=row.company_key or "",
+                    email=row.email or "",
+                    linkedin_url=row.linkedin_url or ""
                 )
             )
             
@@ -106,6 +116,8 @@ async def update_contact(
             if m.get("name") == payload.old_name:
                 m["name"] = payload.new_name
                 m["role"] = payload.new_title
+                m["email"] = payload.email
+                m["linkedin_url"] = payload.linkedin_url
                 updated = True
                 break
                 

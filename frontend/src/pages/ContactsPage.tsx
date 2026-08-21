@@ -5,9 +5,9 @@ import { Users, Search, Loader2, Building2, ExternalLink, User } from 'lucide-re
 import { useApi } from '@/hooks/useApi'
 import { motion } from 'motion/react'
 import Pagination from '@/components/ui/Pagination'
-import Modal from '@/components/ui/Modal'
-import { toast } from '@/components/ui/toast'
-import type { ContactsPageResponse, ContactResponse } from '@/types/api'
+import { Modal } from '@/components/ui/Modal'
+import { showToast } from '@/components/ui/toast'
+import type { ContactsPageResponse, Contact } from '@/types/api'
 import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 30
@@ -16,9 +16,11 @@ export default function ContactsPage() {
   const { fetchApi } = useApi()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [editingContact, setEditingContact] = useState<ContactResponse | null>(null)
+  const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [editName, setEditName] = useState('')
   const [editTitle, setEditTitle] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editLinkedin, setEditLinkedin] = useState('')
 
   const { data, isLoading } = useQuery<ContactsPageResponse>({
     queryKey: ['contacts', page, search],
@@ -42,7 +44,7 @@ export default function ContactsPage() {
     e.preventDefault()
     if (!editingContact) return
 
-    const toastId = toast.loading('Updating contact...')
+    showToast({ title: 'Updating contact...', variant: 'progress' })
     try {
       const res = await fetchApi(`/api/v1/contacts/${editingContact.company_key}`, {
         method: 'PUT',
@@ -50,24 +52,28 @@ export default function ContactsPage() {
         body: JSON.stringify({
           old_name: editingContact.name,
           new_name: editName,
-          new_title: editTitle
+          new_title: editTitle,
+          email: editEmail,
+          linkedin_url: editLinkedin
         })
       })
 
       if (!res.ok) throw new Error('Failed to update contact')
-      toast.success('Contact updated successfully', { id: toastId })
+      showToast({ title: 'Contact updated successfully', variant: 'success' })
       setEditingContact(null)
       // Force reload or wait for query invalidation. We can just mutate directly or let react-query refetch
       window.location.reload()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update contact', { id: toastId })
+      showToast({ title: err.message || 'Failed to update contact', variant: 'error' })
     }
   }
 
-  function openEdit(contact: ContactResponse) {
+  function openEdit(contact: Contact) {
     setEditingContact(contact)
     setEditName(contact.name)
     setEditTitle(contact.title)
+    setEditEmail(contact.email || '')
+    setEditLinkedin(contact.linkedin_url || '')
   }
 
   return (
@@ -214,6 +220,24 @@ export default function ContactsPage() {
                 type="text" 
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full bg-slate-900 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Email</label>
+              <input 
+                type="email" 
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                className="w-full bg-slate-900 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">LinkedIn URL</label>
+              <input 
+                type="url" 
+                value={editLinkedin}
+                onChange={(e) => setEditLinkedin(e.target.value)}
                 className="w-full bg-slate-900 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>

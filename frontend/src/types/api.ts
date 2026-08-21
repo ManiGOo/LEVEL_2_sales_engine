@@ -49,6 +49,8 @@ export interface Contact {
   source: string
   company_name: string
   company_key: string
+  email?: string
+  linkedin_url?: string
 }
 
 export interface ContactsPageResponse {
