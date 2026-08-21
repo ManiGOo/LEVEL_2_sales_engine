@@ -305,7 +305,18 @@ async def get_history(db: AsyncSession, company_key: str) -> list[AccountStageHi
     """All stage snapshots for an account, newest first — used by the audit timeline."""
     result = await db.execute(
         select(AccountStageHistory)
-        .where(AccountStageHistory.company_key == company_key)
+        .join(AccountWorkflowStage, AccountStageHistory.stage_id == AccountWorkflowStage.id)
+        .where(AccountWorkflowStage.company_key == company_key)
         .order_by(AccountStageHistory.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+async def get_global_history(db: AsyncSession, limit: int = 5) -> list[AccountStageHistory]:
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(AccountStageHistory)
+        .options(selectinload(AccountStageHistory.stage))
+        .order_by(AccountStageHistory.created_at.desc())
+        .limit(limit)
     )
     return list(result.scalars().all())

@@ -8,7 +8,10 @@ import SignalTimeline from '@/components/dashboard/SignalTimeline'
 import { Card, CardContent } from '@/components/ui/card'
 import { ButtonLink } from '@/components/ui/button'
 import { motion } from 'motion/react'
-import { Sparkles, Radar } from 'lucide-react'
+import { Sparkles, Radar, Activity, FileText } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { formatMoney, QUOTATION_STATUS_VARIANT } from '@/lib/quotation'
+import { stageStatusMeta } from '@/lib/account'
 
 function greeting() {
   const h = new Date().getHours()
@@ -42,7 +45,27 @@ export default function DashboardPage() {
     retry: false,
   })
 
+  const { data: latestHistory } = useQuery({
+    queryKey: ['account-history', 'latest'],
+    queryFn: async () => {
+      const res = await fetchApi('/api/v1/accounts/history/latest?limit=1')
+      return (await res.json()) as any[]
+    },
+    enabled: !!tokens?.access_token,
+  })
+
+  const { data: latestQuotations } = useQuery({
+    queryKey: ['quotations', 'latest'],
+    queryFn: async () => {
+      const res = await fetchApi('/api/v1/quotations?page_size=1')
+      return (await res.json()) as { items: any[] }
+    },
+    enabled: !!tokens?.access_token,
+  })
+
   const topSignal = signals?.items?.[0]
+  const recentHistory = latestHistory?.[0]
+  const recentQuotation = latestQuotations?.items?.[0]
 
   return (
     <motion.div
@@ -98,6 +121,66 @@ export default function DashboardPage() {
         totalCompanies={companies?.total || 0}
         topScore={topSignal?.score || 0}
       />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
+        {recentHistory && (
+          <Card className="overflow-hidden border border-slate-700/60 bg-slate-800/40">
+            <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-700/50 border border-white/5 flex items-center justify-center shrink-0">
+                  <Activity size={18} className="text-slate-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-0.5">
+                    Latest Workflow Alert
+                  </p>
+                  <p className="text-sm font-semibold text-white truncate">
+                    {recentHistory.stage_name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <Badge variant={stageStatusMeta(recentHistory.status).badge}>{stageStatusMeta(recentHistory.status).label}</Badge>
+                    <span className="text-xs text-slate-500 truncate">
+                      by {recentHistory.actor_name || 'Teammate'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <ButtonLink size="sm" variant="secondary" className="shrink-0" href={`/accounts/${recentHistory.company_key || ''}`}>
+                View
+              </ButtonLink>
+            </CardContent>
+          </Card>
+        )}
+
+        {recentQuotation && (
+          <Card className="overflow-hidden border border-slate-700/60 bg-slate-800/40">
+            <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-700/50 border border-white/5 flex items-center justify-center shrink-0">
+                  <FileText size={18} className="text-slate-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-0.5">
+                    Latest Quotation
+                  </p>
+                  <p className="text-sm font-semibold text-white truncate">
+                    {recentQuotation.company_name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <Badge variant={QUOTATION_STATUS_VARIANT[recentQuotation.status as keyof typeof QUOTATION_STATUS_VARIANT] || 'default'}>{recentQuotation.status}</Badge>
+                    <span className="text-xs font-semibold text-slate-300">
+                      {formatMoney(recentQuotation.total, recentQuotation.currency)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <ButtonLink size="sm" variant="secondary" className="shrink-0" href={`/quotations/${recentQuotation.id}`}>
+                View
+              </ButtonLink>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 lg:gap-6 items-start">
         <div className="lg:col-span-3">

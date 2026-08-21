@@ -241,6 +241,28 @@ async def delete_stage(
     return {"status": "deleted"}
 
 
+@router.get("/history/latest", response_model=list[AccountHistoryItem])
+async def latest_global_history(
+    limit: int = Query(5),
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    rows = await account_service.get_global_history(db, limit)
+    return [
+        AccountHistoryItem(
+            id=h.id,
+            stage_id=h.stage_id,
+            stage_name=h.name,
+            actor_name=h.actor_name,
+            status=h.status,
+            created_at=h.created_at,
+            company_key=h.stage.company_key if h.stage else None,
+        )
+        for h in rows
+    ]
+
+
+
 @router.get("/{company_key}/history", response_model=list[AccountHistoryItem])
 async def account_history(
     company_key: str,

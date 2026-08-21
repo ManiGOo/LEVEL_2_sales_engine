@@ -66,6 +66,7 @@ class AccountHistoryItem(BaseModel):
     actor_name: str | None = None
     status: str
     created_at: datetime
+    company_key: str | None = None
 
     model_config = {"from_attributes": True}
 
