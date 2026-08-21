@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
 import type { Company, CompanyPage, Lead } from '@/types/api'
 import { motion } from 'motion/react'
+import { Link } from 'react-router-dom'
 import { ScoreGauge } from '@/components/ui/ScoreGauge'
 import {
   Building2,
@@ -247,7 +248,14 @@ function CompanyCard({
 
         <StatusPill lead={lead} />
         <ScoreGauge score={company.score} size={32} showMaxLabel={false} className="hidden sm:flex" />
-        <ChevronRight size={16} className="text-slate-600 shrink-0" />
+        <Link 
+          to={`/companies/${company.slug}`}
+          onClick={(e) => e.stopPropagation()}
+          className="p-1.5 -mr-1.5 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
+          title="Go to Company Page"
+        >
+          <ChevronRight size={16} className="shrink-0" />
+        </Link>
       </div>
     </motion.div>
   )
