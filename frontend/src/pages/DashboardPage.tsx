@@ -8,7 +8,7 @@ import SignalTimeline from '@/components/dashboard/SignalTimeline'
 import { Card, CardContent } from '@/components/ui/card'
 import { ButtonLink } from '@/components/ui/button'
 import { motion } from 'motion/react'
-import { Sparkles, Radar, Activity, FileText } from 'lucide-react'
+import { Sparkles, Radar, Activity, FileText, Bell, Clock, ArrowRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatMoney, QUOTATION_STATUS_VARIANT } from '@/lib/quotation'
 import { stageStatusMeta } from '@/lib/account'
@@ -45,12 +45,25 @@ export default function DashboardPage() {
     retry: false,
   })
 
-  const { data: latestHistory } = useQuery({
-    queryKey: ['account-history', 'latest'],
+  const { data: recentHistory } = useQuery({
+    queryKey: ['history', 'recent', 1],
     queryFn: async () => {
-      const res = await fetchApi('/api/v1/accounts/history/latest?limit=1')
-      return (await res.json()) as any[]
+      const res = await fetchApi('/api/v1/accounts/history?limit=1')
+      if (!res.ok) return null
+      const data = await res.json()
+      return data.items?.[0] || null
     },
+    enabled: !!tokens?.access_token,
+  })
+
+  const { data: reminders } = useQuery({
+    queryKey: ['reminders'],
+    queryFn: async () => {
+      const res = await fetchApi('/api/v1/reminders')
+      if (!res.ok) return []
+      return res.json()
+    },
+    select: (data: any[]) => data.filter(r => !r.is_completed).slice(0, 5),
     enabled: !!tokens?.access_token,
   })
 
@@ -64,7 +77,6 @@ export default function DashboardPage() {
   })
 
   const topSignal = signals?.items?.[0]
-  const recentHistory = latestHistory?.[0]
   const recentQuotation = latestQuotations?.items?.[0]
 
   return (
@@ -145,8 +157,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-              <ButtonLink size="sm" variant="secondary" className="shrink-0" href={`/accounts/${recentHistory.company_key || ''}`}>
-                View
+              <ButtonLink size="sm" variant="secondary" className="shrink-0" href={`/accounts/sales-qualified/${recentHistory.company_key || ''}`}>
+                View detail <ArrowRight size={14} className="ml-1" />
               </ButtonLink>
             </CardContent>
           </Card>
@@ -181,6 +193,43 @@ export default function DashboardPage() {
           </Card>
         )}
       </div>
+
+      {reminders && reminders.length > 0 && (
+        <Card className="overflow-hidden border border-slate-700/60 bg-slate-800/40 mt-5">
+          <div className="p-4 sm:p-5 border-b border-white/5 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Bell size={18} className="text-amber-400" />
+              Upcoming Reminders
+            </h3>
+          </div>
+          <CardContent className="p-0">
+            <div className="divide-y divide-white/5">
+              {reminders.map(r => {
+                const now = new Date()
+                const isExpired = new Date(r.due_at) <= now
+                return (
+                  <div key={r.id} className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors">
+                    <div className="min-w-0 flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isExpired ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                        {isExpired ? <Bell size={18} /> : <Clock size={18} />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white truncate">{r.subject}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {new Date(r.due_at).toLocaleString()} · <span className="uppercase">{r.account_key}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <ButtonLink size="sm" variant="outline" className="shrink-0" href={`/accounts/sales-qualified/${r.account_key}`}>
+                      View Account
+                    </ButtonLink>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 lg:gap-6 items-start">
         <div className="lg:col-span-3">

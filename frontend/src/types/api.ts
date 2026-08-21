@@ -378,6 +378,8 @@ export interface AccountListPage {
   page: number
   page_size: number
   pages: number
+  available_years: string[]
+  available_sources: string[]
 }
 
 export interface AccountDetail {
@@ -426,10 +428,16 @@ export interface QuotationLineItem {
   line_total?: number
 }
 
+export interface QuotationModuleItem {
+  title: string
+  description?: string
+}
+
 export interface QuotationModule {
   title: string
   icon: string
-  items: string[]
+  category?: string
+  items: QuotationModuleItem[]
 }
 
 export interface Quotation {
@@ -448,6 +456,12 @@ export interface Quotation {
   modules: QuotationModule[]
   notes: string | null
   line_items: QuotationLineItem[]
+  buyer_signatory_name: string | null
+  buyer_signatory_title: string | null
+  buyer_signatory_date: string | null
+  seller_signatory_name: string | null
+  seller_signatory_title: string | null
+  seller_signatory_date: string | null
   subtotal: number
   discount_total: number
   tax_pct: number
@@ -497,6 +511,12 @@ export interface QuotationInput {
   modules?: QuotationModule[]
   notes?: string | null
   tax_pct?: number
+  buyer_signatory_name?: string | null
+  buyer_signatory_title?: string | null
+  buyer_signatory_date?: string | null
+  seller_signatory_name?: string | null
+  seller_signatory_title?: string | null
+  seller_signatory_date?: string | null
   line_items?: Array<{
     category: string
     description: string

@@ -11,6 +11,7 @@ import WebEvidencePanel from '@/components/companies/WebEvidencePanel'
 import SignalDetailCard from '@/components/company/SignalDetailCard'
 import { motion } from 'motion/react'
 import { ArrowLeft, Building2, ClipboardCheck, Globe, Layers, AlertTriangle, CalendarDays, Activity } from 'lucide-react'
+import CompanyContactsPanel from '@/components/company/CompanyContactsPanel'
 
 function rawStr(v: unknown): string {
   return String(v ?? '')
@@ -126,6 +127,9 @@ export default function CompanyDetailPage() {
           <StatBox label="Regulators" value={(company.regulators || []).join(', ') || 'n/a'} />
         </div>
       </Card>
+
+      {/* Decision Makers */}
+      <CompanyContactsPanel companyKey={company.company_key} />
 
       {/* Signals */}
       <Card>

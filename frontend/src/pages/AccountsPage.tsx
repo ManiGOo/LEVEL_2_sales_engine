@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
 import type { CompanyPage } from '@/types/api'
@@ -6,7 +6,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ScoreGauge } from '@/components/ui/ScoreGauge'
 import SegmentedTabs from '@/components/general/SegmentedTabs'
-import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet, Search, MapPin, Calendar, SlidersHorizontal, ArrowUpRight } from 'lucide-react'
+import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet, Search, MapPin, Calendar, SlidersHorizontal, ArrowUpRight, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { showToast } from '@/components/ui/toast'
 import SalesQualifiedView from '@/components/companies/SalesQualifiedView'
@@ -40,6 +40,8 @@ export default function AccountsPage() {
   const [minScore, setMinScore] = useState<string>('')
   const [maxScore, setMaxScore] = useState<string>('')
 
+  const [existingNames, setExistingNames] = useState<Set<string>>(new Set())
+
   function clearFilters() {
     setYear('')
     setState('')
@@ -59,7 +61,8 @@ export default function AccountsPage() {
       if (!res.ok) throw new Error('Failed to promote')
       return res.json()
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+      setExistingNames((prev) => new Set(prev).add(variables.name.toLowerCase()))
       if (data.created.length > 0) {
         showToast({ title: `Promoted to Sales Qualified`, variant: 'success' })
         qc.invalidateQueries({ queryKey: ['accounts'] })
@@ -98,6 +101,8 @@ export default function AccountsPage() {
     }
   }
 
+  const [sqTotal, setSqTotal] = useState<number | null>(null)
+
   const { data, isFetching } = useQuery({
     queryKey: ['companies', 'ranking', page, search, year, state, minScore, maxScore],
     queryFn: async () => {
@@ -114,6 +119,25 @@ export default function AccountsPage() {
 
   const years = data?.available_years ?? []
   const states = data?.available_states ?? []
+
+  const rankingNamesKey = tab === 'cdsco-s-fda' && data?.items ? data.items.map((c) => c.name).join('|') : ''
+  useEffect(() => {
+    if (!rankingNamesKey) return
+    let cancelled = false
+    fetchApi('/api/v1/accounts/exists', {
+      method: 'POST',
+      body: JSON.stringify({ names: rankingNamesKey.split('|') }),
+    })
+      .then((res) => res.json())
+      .then((j: { existing: string[] }) => {
+        if (cancelled) return
+        setExistingNames(new Set(j.existing.map((n) => n.toLowerCase())))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [rankingNamesKey, fetchApi])
 
   const pages = Math.max(data?.pages || 1, 1)
 
@@ -134,6 +158,8 @@ export default function AccountsPage() {
   const start = (page - 1) * PAGE_SIZE + 1
   const shown = data?.items.length || 0
 
+  const displayTotal = tab === 'sales-qualified' ? sqTotal : data?.total
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -144,7 +170,7 @@ export default function AccountsPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">Accounts</h1>
           <p className="text-slate-400 text-sm mt-1">
-            {data?.total != null ? `${data.total.toLocaleString()} accounts` : 'All accounts'}
+            {displayTotal != null ? `${displayTotal.toLocaleString()} accounts` : 'All accounts'}
           </p>
         </div>
         <button
@@ -172,7 +198,7 @@ export default function AccountsPage() {
       />
 
       {tab === 'sales-qualified' ? (
-        <SalesQualifiedView />
+        <SalesQualifiedView onTotalChange={setSqTotal} />
       ) : tab === 'cdsco-s-fda' ? (
       <>
 
@@ -325,19 +351,26 @@ export default function AccountsPage() {
                 <div className="shrink-0 scale-90 sm:scale-100 hidden sm:block">
                   <ScoreGauge score={company.avg_score} />
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    promoteMut.mutate(company)
-                  }}
-                  disabled={promoteMut.isPending}
-                  className="px-2 py-1.5 rounded bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-xs font-medium transition-colors shrink-0 flex items-center gap-1"
-                  title="Promote to Sales Qualified"
-                >
-                  <ArrowUpRight size={13} />
-                  Promote
-                </button>
+                 {existingNames.has(company.name.toLowerCase()) ? (
+                  <span className="px-2 py-1.5 rounded bg-amber-500/10 text-amber-400 text-xs font-medium shrink-0 flex items-center gap-1">
+                    <Check size={13} />
+                    Qualified
+                  </span>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      promoteMut.mutate(company)
+                    }}
+                    disabled={promoteMut.isPending}
+                    className="px-2 py-1.5 rounded bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-xs font-medium transition-colors shrink-0 flex items-center gap-1"
+                    title="Promote to Sales Qualified"
+                  >
+                    <ArrowUpRight size={13} />
+                    Promote
+                  </button>
+                )}
                 <ChevronRight size={16} className="text-slate-600 group-hover:text-indigo-400 transition-colors shrink-0" />
               </Link>
             </motion.div>

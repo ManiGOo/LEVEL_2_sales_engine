@@ -21,6 +21,7 @@ interface Props {
   onMoveStage: (stage: AccountStage, dir: -1 | 1) => void
   onAddStage: () => void
   onAdvance: (stage: AccountStage, currentVersion: number, nextVersion?: number) => void
+  onReminder?: (stage: AccountStage) => void
   canEdit?: boolean
   saving?: boolean
 }
@@ -40,6 +41,7 @@ export default function WorkflowBoard({
   onMoveStage,
   onAddStage,
   onAdvance,
+  onReminder,
   canEdit = true,
   saving,
 }: Props) {
@@ -321,11 +323,16 @@ export default function WorkflowBoard({
                   )}
 
                   {locked ? (
-                    <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
                       <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
                         <CheckCircle size={12} className="text-emerald-400" /> Completed — locked from editing
                       </span>
                       <div className="flex flex-wrap gap-2">
+                        {onReminder && (
+                          <Button size="sm" variant="secondary" onClick={() => onReminder(stage)} disabled={saving || !canEdit} className="text-amber-300 hover:text-amber-200">
+                            Reminder
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" onClick={() => onSaveStage(stage.id, { status: 'active' })} disabled={saving || !canEdit}>
                           Reopen
                         </Button>
@@ -342,6 +349,11 @@ export default function WorkflowBoard({
                       {isCurrent && !isLast && (
                         <Button size="sm" variant="secondary" onClick={() => handleAdvance(stage)} disabled={saving || !canEdit}>
                           <ArrowDown size={14} /> Complete &amp; next
+                        </Button>
+                      )}
+                      {onReminder && (
+                        <Button size="sm" variant="secondary" onClick={() => onReminder(stage)} disabled={saving || !canEdit} className="text-amber-300 hover:text-amber-200">
+                          Reminder
                         </Button>
                       )}
                       <Button size="sm" variant="ghost" onClick={() => onMoveStage(stage, -1)} disabled={index === 0 || !canEdit}>

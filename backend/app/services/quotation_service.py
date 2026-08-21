@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timezone, date
 from decimal import Decimal
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from playwright.async_api import async_playwright
 from app.models.quotation import Quotation
@@ -60,10 +61,46 @@ def compute_totals(items: list[QuotationLineItem]) -> dict:
     }
 
 
+def _esc(value) -> str:
+    """Escape text for safe embedding in the generated HTML."""
+    if value is None:
+        return ""
+    return (
+        str(value)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def _sign_lines(name: str | None, title: str | None, sig_date: str | None) -> str:
+    """Render the signature slot. Falls back to a placeholder when empty."""
+    if name or title or sig_date:
+        parts = []
+        if name:
+            parts.append(f"<div style='font-weight:700;color:#0f172a'>{_esc(name)}</div>")
+        if title:
+            parts.append(f"<div>{_esc(title)}</div>")
+        if sig_date:
+            parts.append(f"<div>{_esc(sig_date)}</div>")
+        return "<br>".join(parts)
+    return "Name / Title / Date"
+
+
 async def _next_quote_number(db: AsyncSession) -> str:
     year = datetime.now(timezone.utc).year
-    count = (await db.execute(select(func.count(Quotation.id)))).scalar() or 0
-    return f"Q-{year}-{count + 1:04d}"
+    prefix = f"Q-{year}-"
+    rows = (await db.execute(select(Quotation.quote_number))).scalars().all()
+    max_n = 0
+    for qn in rows:
+        if qn and qn.startswith(prefix):
+            try:
+                n = int(qn[len(prefix):])
+                if n > max_n:
+                    max_n = n
+            except ValueError:
+                pass
+    return f"{prefix}{max_n + 1:04d}"
 
 
 def _to_response(q: Quotation, line_items: list[QuotationLineItemResponse]) -> QuotationResponse:
@@ -83,6 +120,12 @@ def _to_response(q: Quotation, line_items: list[QuotationLineItemResponse]) -> Q
         modules=q.modules or [],
         notes=q.notes,
         line_items=line_items,
+        buyer_signatory_name=q.buyer_signatory_name,
+        buyer_signatory_title=q.buyer_signatory_title,
+        buyer_signatory_date=q.buyer_signatory_date,
+        seller_signatory_name=q.seller_signatory_name,
+        seller_signatory_title=q.seller_signatory_title,
+        seller_signatory_date=q.seller_signatory_date,
         subtotal=float(q.subtotal),
         discount_total=float(q.discount_total),
         tax_pct=float(q.tax_pct),
@@ -156,30 +199,39 @@ async def get_quotation(db: AsyncSession, quotation_id: str) -> QuotationRespons
 async def create_quotation(db: AsyncSession, data: QuotationCreate, actor: User) -> QuotationResponse:
     items = [QuotationLineItem(**it.model_dump()) for it in data.line_items]
     totals = compute_totals(items)
-    qq = Quotation(
-        company_key=data.company_key,
-        company_name=data.company_name,
-        quote_number=await _next_quote_number(db),
-        status=data.status or "draft",
-        currency=data.currency or "USD",
-        title=data.title or "Commercial Proposal",
-        quotation_date=data.quotation_date,
-        valid_until=data.valid_until,
-        intro=data.intro,
-        terms=data.terms,
-        scope=data.scope,
-        modules=[m.model_dump() for m in (data.modules or [])],
-        notes=data.notes,
-        line_items=[it.model_dump() for it in items],
-        subtotal=totals["subtotal"],
-        discount_total=totals["discount_total"],
-        tax_amount=totals["tax_amount"],
-        total=totals["total"],
-        owner_id=actor.id,
-        owner_email=actor.email,
-    )
-    db.add(qq)
-    await db.commit()
+    qq = None
+    for _ in range(5):
+        qq = Quotation(
+            company_key=data.company_key,
+            company_name=data.company_name,
+            quote_number=await _next_quote_number(db),
+            status=data.status or "draft",
+            currency=data.currency or "USD",
+            title=data.title or "Commercial Proposal",
+            quotation_date=data.quotation_date,
+            valid_until=data.valid_until,
+            intro=data.intro,
+            terms=data.terms,
+            scope=data.scope,
+            modules=[m.model_dump() for m in (data.modules or [])],
+            notes=data.notes,
+            line_items=[it.model_dump() for it in items],
+            subtotal=totals["subtotal"],
+            discount_total=totals["discount_total"],
+            tax_amount=totals["tax_amount"],
+            total=totals["total"],
+            owner_id=actor.id,
+            owner_email=actor.email,
+        )
+        db.add(qq)
+        try:
+            await db.commit()
+            break
+        except IntegrityError:
+            await db.rollback()
+            qq = None
+    if qq is None:
+        raise RuntimeError("Could not allocate a unique quote number")
     await db.refresh(qq)
     await _safe_record_version(db, qq, actor)
     return _to_response(qq, totals["line_items"])
@@ -212,7 +264,23 @@ async def update_quotation(
     if "modules" in update and update["modules"] is not None:
         qq.modules = [m for m in update["modules"]]
 
-    for field in ("title", "currency", "status", "quotation_date", "valid_until", "intro", "terms", "scope", "notes"):
+    for field in (
+        "title",
+        "currency",
+        "status",
+        "quotation_date",
+        "valid_until",
+        "intro",
+        "terms",
+        "scope",
+        "notes",
+        "buyer_signatory_name",
+        "buyer_signatory_title",
+        "buyer_signatory_date",
+        "seller_signatory_name",
+        "seller_signatory_title",
+        "seller_signatory_date",
+    ):
         if field in update and update[field] is not None:
             setattr(qq, field, update[field])
     if "tax_pct" in update and update["tax_pct"] is not None:
@@ -244,30 +312,39 @@ async def duplicate_quotation(db: AsyncSession, quotation_id: str, actor: User) 
         return None
     items = [QuotationLineItem(**it) for it in (qq.line_items or [])]
     totals = compute_totals(items)
-    new = Quotation(
-        company_key=qq.company_key,
-        company_name=qq.company_name,
-        quote_number=await _next_quote_number(db),
-        status="draft",
-        currency=qq.currency,
-        title=qq.title,
-        valid_until=qq.valid_until,
-        intro=qq.intro,
-        terms=qq.terms,
-        scope=qq.scope,
-        modules=qq.modules,
-        notes=qq.notes,
-        line_items=qq.line_items,
-        tax_pct=qq.tax_pct,
-        subtotal=qq.subtotal,
-        discount_total=qq.discount_total,
-        tax_amount=qq.tax_amount,
-        total=qq.total,
-        owner_id=actor.id,
-        owner_email=actor.email,
-    )
-    db.add(new)
-    await db.commit()
+    new = None
+    for _ in range(5):
+        new = Quotation(
+            company_key=qq.company_key,
+            company_name=qq.company_name,
+            quote_number=await _next_quote_number(db),
+            status="draft",
+            currency=qq.currency,
+            title=qq.title,
+            valid_until=qq.valid_until,
+            intro=qq.intro,
+            terms=qq.terms,
+            scope=qq.scope,
+            modules=qq.modules,
+            notes=qq.notes,
+            line_items=qq.line_items,
+            tax_pct=qq.tax_pct,
+            subtotal=qq.subtotal,
+            discount_total=qq.discount_total,
+            tax_amount=qq.tax_amount,
+            total=qq.total,
+            owner_id=actor.id,
+            owner_email=actor.email,
+        )
+        db.add(new)
+        try:
+            await db.commit()
+            break
+        except IntegrityError:
+            await db.rollback()
+            new = None
+    if new is None:
+        raise RuntimeError("Could not allocate a unique quote number")
     await db.refresh(new)
     await _safe_record_version(db, new, actor)
     return _to_response(new, totals["line_items"])
@@ -355,6 +432,7 @@ def render_html(q: QuotationResponse) -> str:
                 m_dict = getattr(m, "__dict__", {})
 
             title = m_dict.get("title", "")
+            category = m_dict.get("category", "")
             items = m_dict.get("items", [])
             icon = m_dict.get("icon", "document")
             # SVG mapping based on icon string
@@ -372,30 +450,42 @@ def render_html(q: QuotationResponse) -> str:
                 "cpu": '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>'
             }
             svg_path = svgs.get(icon, svgs["document"])
-            
+
             items_html = ""
             for item in items:
-                # Parse AI badge
-                if "✨ AI" in item:
-                    item_text = item.replace("✨ AI", "").strip()
-                    item_display = f'<span class="text">{item_text}</span><span class="ai-badge">✨ AI</span>'
+                if isinstance(item, dict):
+                    item_title = item.get("title", "") or ""
+                    item_desc = item.get("description", "") or ""
                 else:
-                    item_display = f'<span class="text">{item}</span>'
-                
+                    item_title = str(item)
+                    item_desc = ""
+                raw = f"{item_title} {item_desc}"
+                has_ai = "✨ AI" in raw
+                disp_title = item_title.replace("✨ AI", "").strip()
+                disp_desc = item_desc.replace("✨ AI", "").strip()
+                ai_badge = '<span class="ai-badge">✨ AI</span>' if has_ai else ""
+                desc_html = f'<div class="mod-item-desc">{disp_desc}</div>' if disp_desc else ""
                 items_html += f'''
                     <li>
                         <span class="check">✔</span>
-                        {item_display}
+                        <div class="mod-item">
+                            <span class="text">{disp_title}</span>{ai_badge}
+                            {desc_html}
+                        </div>
                     </li>
                 '''
 
+            cat_badge = f'<span class="mod-cat">{category}</span>' if category else ""
             modules_html += f'''
                 <div class="mod-card">
                     <div class="mod-card-header">
                         <div class="mod-card-icon">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">{svg_path}</svg>
                         </div>
-                        <h3 class="mod-card-title">{title}</h3>
+                        <div class="mod-card-head-text">
+                            <h3 class="mod-card-title">{title}</h3>
+                            {cat_badge}
+                        </div>
                     </div>
                     <ul>
                         {items_html}
@@ -472,7 +562,11 @@ def render_html(q: QuotationResponse) -> str:
  .mod-card-header{{display:flex;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f3f4f6}}
  .mod-card-icon{{background-color:#f1f5f9;color:#334155;padding:8px;border-radius:8px;margin-right:12px;display:flex;align-items:center;justify-content:center}}
  .mod-card-icon svg{{width:20px;height:20px;display:block}}
- .mod-card-title{{font-weight:900;color:#1e293b;font-size:18px;margin:0}}
+  .mod-card-title{{font-weight:900;color:#1e293b;font-size:18px;margin:0}}
+  .mod-card-head-text{{display:flex;flex-direction:column;gap:2px}}
+  .mod-cat{{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#475569;background:#f1f5f9;padding:2px 8px;border-radius:999px;width:fit-content}}
+  .mod-item{{display:flex;flex-direction:column;gap:2px}}
+  .mod-item-desc{{font-size:12.5px;color:#64748b;line-height:1.5;font-weight:400}}
  .mod-card ul{{list-style:none !important;padding:0 !important;margin:0 0 0 4px !important}}
  .mod-card li{{display:flex;align-items:flex-start;padding:10px 0;border-bottom:none !important}}
  .mod-card li .check{{color:#22c55e;font-weight:700;margin-right:8px;margin-top:2px;font-size:14px}}
@@ -548,14 +642,22 @@ def render_html(q: QuotationResponse) -> str:
    <h2>4 · Payment Terms &amp; Conditions</h2>
    <div class="prose" data-field="terms">{terms_html}</div>
   </div>
-  <div class="section">
-   <h2>5 · Acceptance &amp; Authorization</h2>
-   <p class="muted" style="font-size:13px;margin:0 0 16px">By signing below, the parties agree to the scope, commercial terms, and conditions outlined in this proposal.</p>
-   <div class="sign">
-    <div class="blk"><b>For {q.company_name}</b>Accepted &amp; Approved By<br><br><br>Name / Title / Date</div>
-    <div class="blk"><b>Authorized Signatory</b>Seller Representative<br><br><br>Name / Title / Date</div>
+   <div class="section">
+    <h2>5 · Acceptance &amp; Authorization</h2>
+    <p class="muted" style="font-size:13px;margin:0 0 16px">By signing below, the parties agree to the scope, commercial terms, and conditions outlined in this proposal.</p>
+    <div class="sign">
+     <div class="blk">
+      <b>For {_esc(q.company_name)}</b>
+      <div style="margin-top:6px;font-weight:600;color:#0f172a">Accepted &amp; Approved By</div>
+      {_sign_lines(q.buyer_signatory_name, q.buyer_signatory_title, q.buyer_signatory_date)}
+     </div>
+     <div class="blk">
+      <b>Authorized Signatory</b>
+      <div style="margin-top:6px;font-weight:600;color:#0f172a">Seller Representative</div>
+      {_sign_lines(q.seller_signatory_name, q.seller_signatory_title, q.seller_signatory_date)}
+     </div>
+    </div>
    </div>
-  </div>
    <div class="foot">
     <span>Quote {q.quote_number} · version {q.version}</span>
     <span>Generated by the sales platform</span>
@@ -579,15 +681,37 @@ async def render_preview(
         return render_html(q)
 
     update = data.model_dump(exclude_unset=True)
+
+    def _as_line_item(it):
+        if hasattr(it, "model_dump"):
+            return QuotationLineItem(**it.model_dump())
+        return QuotationLineItem(**it)
+
     if "line_items" in update and update["line_items"] is not None:
-        items = [QuotationLineItem(**it) for it in update["line_items"]]
+        items = [_as_line_item(it) for it in update["line_items"]]
         q.line_items = update["line_items"]
     else:
-        items = [QuotationLineItem(**it) for it in (q.line_items or [])]
+        items = [_as_line_item(it) for it in (q.line_items or [])]
     totals = compute_totals(items)
     if "modules" in update and update["modules"] is not None:
         q.modules = [m for m in update["modules"]]
-    for field in ("title", "currency", "status", "quotation_date", "valid_until", "intro", "terms", "scope", "notes"):
+    for field in (
+        "title",
+        "currency",
+        "status",
+        "quotation_date",
+        "valid_until",
+        "intro",
+        "terms",
+        "scope",
+        "notes",
+        "buyer_signatory_name",
+        "buyer_signatory_title",
+        "buyer_signatory_date",
+        "seller_signatory_name",
+        "seller_signatory_title",
+        "seller_signatory_date",
+    ):
         if field in update and update[field] is not None:
             setattr(q, field, update[field])
     q.subtotal = totals["subtotal"]
@@ -621,6 +745,12 @@ async def _record_version(db: AsyncSession, qq: Quotation, actor: User | None) -
         "notes": qq.notes,
         "tax_pct": qq.tax_pct,
         "line_items": qq.line_items,
+        "buyer_signatory_name": qq.buyer_signatory_name,
+        "buyer_signatory_title": qq.buyer_signatory_title,
+        "buyer_signatory_date": qq.buyer_signatory_date,
+        "seller_signatory_name": qq.seller_signatory_name,
+        "seller_signatory_title": qq.seller_signatory_title,
+        "seller_signatory_date": qq.seller_signatory_date,
         "subtotal": float(qq.subtotal),
         "discount_total": float(qq.discount_total),
         "tax_amount": float(qq.tax_amount),

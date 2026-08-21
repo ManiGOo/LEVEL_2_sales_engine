@@ -42,6 +42,7 @@ async def get_contacts(
     page: int = Query(1, ge=1),
     page_size: int = Query(30, ge=1, le=100),
     q: Optional[str] = None,
+    company_key: Optional[str] = None,
     user=Depends(get_current_user),
 ):
     db = SessionLocal()
@@ -73,6 +74,9 @@ async def get_contacts(
                     CompanyLead.company_name.ilike(search_term)
                 )
             )
+            
+        if company_key:
+            stmt = stmt.where(CompanyLead.company_key == company_key)
             
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total_count = db.execute(count_stmt).scalar() or 0

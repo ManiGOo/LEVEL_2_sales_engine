@@ -38,10 +38,12 @@ async def list_accounts(
     page: int = Query(1),
     page_size: int = Query(30),
     q: str = Query(None),
+    source: str = Query(None),
+    year: str = Query(None),
     db: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    return await account_service.list_accounts(db, page=page, page_size=page_size, q=q)
+    return await account_service.list_accounts(db, page=page, page_size=page_size, q=q, source=source, year=year)
 
 
 @router.get("/{company_key}", response_model=AccountDetail)

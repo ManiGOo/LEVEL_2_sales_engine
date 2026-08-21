@@ -26,6 +26,10 @@
   border-color: var(--color-border);
 }
 
+:root {
+  color-scheme: dark;
+}
+
 body {
   background-color: #f8fafc;
   color: #0f172a;
@@ -252,3 +256,8 @@ body {
   }
 }
 
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}

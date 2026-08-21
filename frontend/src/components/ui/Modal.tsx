@@ -22,7 +22,7 @@ function ModalInner({ title, onClose, children, className }: Omit<ModalProps, 'o
       <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          'relative mx-auto w-full lg:max-w-2xl lg:rounded-2xl lg:border border-white/10 lg:bg-slate-900/95 lg:backdrop-blur-xl',
+          'relative mx-auto w-full lg:max-w-2xl rounded-t-2xl lg:rounded-2xl border-t lg:border-x lg:border-b border-white/10 bg-slate-900/95 backdrop-blur-xl',
           'flex flex-col shadow-2xl modal-enter',
           className
         )}

@@ -15,6 +15,7 @@ import {
   Lock,
   History,
   RotateCcw,
+  LayoutTemplate,
 } from 'lucide-react'
 import { useApi } from '@/hooks/useApi'
 import { useAuth } from '@/providers/AuthProvider'
@@ -35,6 +36,7 @@ import {
   QUOTATION_STATUS_VARIANT,
 } from '@/lib/quotation'
 import { CURRENCIES } from '@/lib/currencies'
+import { QUOTATION_TEMPLATES, getTemplate } from '@/lib/quotationTemplates'
 
 type EditableItem = Omit<QuotationLineItem, 'line_total'>
 
@@ -70,6 +72,12 @@ export default function QuotationDetailPage() {
     modules: QuotationModule[]
     tax_pct: number | ''
     items: EditableItem[]
+    buyer_signatory_name: string
+    buyer_signatory_title: string
+    buyer_signatory_date: string
+    seller_signatory_name: string
+    seller_signatory_title: string
+    seller_signatory_date: string
   } | null>(null)
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -77,6 +85,7 @@ export default function QuotationDetailPage() {
   const [editing, setEditing] = useState(true)
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [versionPreviewHtml, setVersionPreviewHtml] = useState<string | null>(null)
+  const [templateModalOpen, setTemplateModalOpen] = useState(false)
 
   function applyEditable() {
     const doc = iframeRef.current?.contentDocument
@@ -144,6 +153,12 @@ export default function QuotationDetailPage() {
         discount_pct: it.discount_pct,
         tax_pct: it.tax_pct || 0,
       })),
+      buyer_signatory_name: data.buyer_signatory_name || '',
+      buyer_signatory_title: data.buyer_signatory_title || '',
+      buyer_signatory_date: data.buyer_signatory_date || '',
+      seller_signatory_name: data.seller_signatory_name || '',
+      seller_signatory_title: data.seller_signatory_title || '',
+      seller_signatory_date: data.seller_signatory_date || '',
     })
   }, [data?.id, data?.version])
 
@@ -167,6 +182,12 @@ export default function QuotationDetailPage() {
         modules: form!.modules,
         tax_pct: form!.tax_pct === '' ? 0 : form!.tax_pct,
         line_items: form!.items,
+        buyer_signatory_name: form!.buyer_signatory_name || null,
+        buyer_signatory_title: form!.buyer_signatory_title || null,
+        buyer_signatory_date: form!.buyer_signatory_date || null,
+        seller_signatory_name: form!.seller_signatory_name || null,
+        seller_signatory_title: form!.seller_signatory_title || null,
+        seller_signatory_date: form!.seller_signatory_date || null,
       }
       const res = await fetchApi(`/api/v1/quotations/${id}?expected_version=${data?.version ?? 0}`, {
         method: 'PATCH',
@@ -232,6 +253,12 @@ export default function QuotationDetailPage() {
         modules: form!.modules,
         tax_pct: form!.tax_pct === '' ? 0 : form!.tax_pct,
         line_items: form!.items,
+        buyer_signatory_name: form!.buyer_signatory_name || null,
+        buyer_signatory_title: form!.buyer_signatory_title || null,
+        buyer_signatory_date: form!.buyer_signatory_date || null,
+        seller_signatory_name: form!.seller_signatory_name || null,
+        seller_signatory_title: form!.seller_signatory_title || null,
+        seller_signatory_date: form!.seller_signatory_date || null,
       }),
     })
     if (!res.ok) return
@@ -277,12 +304,18 @@ export default function QuotationDetailPage() {
           status: 'draft',
           quotation_date: form!.quotation_date || null,
           valid_until: form!.valid_until || null,
-          intro: form!.intro,
-          terms: form!.terms,
-          scope: form!.scope,
-          modules: form!.modules,
-          tax_pct: form!.tax_pct === '' ? 0 : form!.tax_pct,
-          line_items: form!.items,
+        intro: form!.intro,
+        terms: form!.terms,
+        scope: form!.scope,
+        modules: form!.modules,
+        tax_pct: form!.tax_pct === '' ? 0 : form!.tax_pct,
+        line_items: form!.items,
+        buyer_signatory_name: form!.buyer_signatory_name || null,
+        buyer_signatory_title: form!.buyer_signatory_title || null,
+        buyer_signatory_date: form!.buyer_signatory_date || null,
+        seller_signatory_name: form!.seller_signatory_name || null,
+        seller_signatory_title: form!.seller_signatory_title || null,
+        seller_signatory_date: form!.seller_signatory_date || null,
         }),
       })
       if (!res.ok) throw new Error('Failed to generate PDF')
@@ -371,6 +404,50 @@ export default function QuotationDetailPage() {
     setForm({ ...form, items: form.items.filter((_, i) => i !== index) })
   }
 
+  function applyTemplate(templateId: string) {
+    const tpl = getTemplate(templateId)
+    if (!tpl?.defaults || !form) return
+    const d = tpl.defaults
+    if (
+      !window.confirm(
+        `Apply the "${tpl.name}" template? This replaces the title, currency, pricing, modules, and line items with the template defaults.`,
+      )
+    ) {
+      return
+    }
+    setForm((prev) =>
+      prev
+        ? {
+            ...prev,
+            title: d.title,
+            currency: d.currency,
+            tax_pct: d.tax_pct,
+            intro: d.intro,
+            terms: d.terms,
+            scope: d.scope,
+            modules: d.modules.map((m) => ({
+              title: m.title,
+              icon: m.icon,
+              category: m.category || '',
+              items: m.items.map((it) => ({ title: it.title, description: it.description || '' })),
+            })),
+            items: d.line_items.map((li) => ({
+              category: li.category,
+              description: li.description,
+              qty: li.qty,
+              unit: li.unit,
+              unit_price: li.unit_price,
+              type: li.type,
+              discount_pct: li.discount_pct,
+              tax_pct: li.tax_pct || 0,
+            })),
+          }
+        : prev,
+    )
+    setTemplateModalOpen(false)
+    showToast({ variant: 'info', title: 'Template applied — review and Save' })
+  }
+
   if (!data) {
     return <div className="text-slate-400 p-8">{isFetching ? 'Loading…' : 'Quotation not found'}</div>
   }
@@ -412,6 +489,11 @@ export default function QuotationDetailPage() {
           >
             <History className="w-4 h-4" /> History
           </Button>
+          {editable && (
+            <Button variant="secondary" onClick={() => setTemplateModalOpen(true)}>
+              <LayoutTemplate className="w-4 h-4" /> Change template
+            </Button>
+          )}
           <Button variant="secondary" onClick={() => duplicateMutation.mutate()} disabled={duplicateMutation.isPending}>
             <Copy className="w-4 h-4" /> Duplicate
           </Button>
@@ -515,6 +597,72 @@ export default function QuotationDetailPage() {
                   onChange={(html) => setForm({ ...form, terms: html })}
                 />
               </Field>
+            </div>
+          </Section>
+
+          <Section title="Acceptance & Authorization">
+            <p className="text-xs text-slate-400 mb-3">
+              Signature block shown in section 5 of the proposal. The Seller Representative is your side.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-slate-300">Buyer — Accepted &amp; Approved By</h4>
+                <Field label="Name">
+                  <input
+                    disabled={!editable}
+                    value={form.buyer_signatory_name}
+                    onChange={(e) => setForm({ ...form, buyer_signatory_name: e.target.value })}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Title">
+                  <input
+                    disabled={!editable}
+                    value={form.buyer_signatory_title}
+                    onChange={(e) => setForm({ ...form, buyer_signatory_title: e.target.value })}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Date">
+                  <input
+                    type="date"
+                    disabled={!editable}
+                    value={form.buyer_signatory_date}
+                    onChange={(e) => setForm({ ...form, buyer_signatory_date: e.target.value })}
+                    className={inputCls}
+                    style={{ colorScheme: 'dark' }}
+                  />
+                </Field>
+              </div>
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-slate-300">Seller — Seller Representative</h4>
+                <Field label="Name">
+                  <input
+                    disabled={!editable}
+                    value={form.seller_signatory_name}
+                    onChange={(e) => setForm({ ...form, seller_signatory_name: e.target.value })}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Title">
+                  <input
+                    disabled={!editable}
+                    value={form.seller_signatory_title}
+                    onChange={(e) => setForm({ ...form, seller_signatory_title: e.target.value })}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Date">
+                  <input
+                    type="date"
+                    disabled={!editable}
+                    value={form.seller_signatory_date}
+                    onChange={(e) => setForm({ ...form, seller_signatory_date: e.target.value })}
+                    className={inputCls}
+                    style={{ colorScheme: 'dark' }}
+                  />
+                </Field>
+              </div>
             </div>
           </Section>
         </div>
@@ -738,6 +886,34 @@ export default function QuotationDetailPage() {
                   <RotateCcw className="w-4 h-4" /> Restore
                 </Button>
               </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal
+        open={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+        title="Apply template"
+        className="lg:max-w-2xl"
+      >
+        <p className="text-xs text-slate-400 mb-3">
+          Select a template to load its title, currency, pricing, modules, and line items into this
+          quotation. Review the result and Save.
+        </p>
+        <div className="space-y-3">
+          {QUOTATION_TEMPLATES.filter((t) => t.defaults && t.id !== 'custom').map((t) => (
+            <div
+              key={t.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-slate-700/60 bg-slate-800/40 p-3"
+            >
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-white">{t.name}</div>
+                <div className="text-xs text-slate-400">{t.description}</div>
+              </div>
+              <Button variant="secondary" onClick={() => applyTemplate(t.id)}>
+                Apply
+              </Button>
             </div>
           ))}
         </div>

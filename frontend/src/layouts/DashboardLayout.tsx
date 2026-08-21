@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from '@/components/layout/Sidebar'
 import { Menu } from 'lucide-react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { ReminderManager } from '@/components/reminders/ReminderManager'
 
 export default function DashboardLayout() {
   const isDesktop = useMediaQuery('(min-width: 1024px)')
@@ -32,6 +33,7 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+      <ReminderManager />
     </div>
   )
 }

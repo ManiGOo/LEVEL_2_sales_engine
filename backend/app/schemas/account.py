@@ -85,6 +85,8 @@ class AccountListPage(BaseModel):
     page: int
     page_size: int
     pages: int
+    available_years: list[str] = []
+    available_sources: list[str] = []
 
 
 class AccountReorderRequest(BaseModel):

@@ -21,6 +21,7 @@ import {
   Trash2,
   ExternalLink,
   LayoutTemplate,
+  Bell,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,7 @@ import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/Modal'
 import { showToast } from '@/components/ui/toast'
 import { ACCOUNT_STAGE_STATUSES, stageStatusMeta } from '@/lib/account'
+import { ReminderModal } from '@/components/reminders/ReminderModal'
 import { formatMoney, QUOTATION_STATUS_VARIANT } from '@/lib/quotation'
 import WorkflowBoard from '@/components/accounts/WorkflowBoard'
 import AccountHistoryTimeline from '@/components/accounts/AccountHistoryTimeline'
@@ -51,6 +53,8 @@ export default function AccountDetailPage() {
   const [form, setForm] = useState<StageForm>(emptyForm)
   const [deleteTarget, setDeleteTarget] = useState<AccountStage | null>(null)
   const [templateOpen, setTemplateOpen] = useState(false)
+  const [reminderOpen, setReminderOpen] = useState(false)
+  const [reminderSubject, setReminderSubject] = useState('')
 
   const { data, isFetching } = useQuery({
     queryKey: ['account', companyKey],
@@ -327,6 +331,12 @@ export default function AccountDetailPage() {
           <Button size="sm" onClick={openCreate} disabled={isFetching || !canEdit} className="w-full sm:w-auto">
             <Plus size={14} /> Add stage
           </Button>
+          <Button variant="secondary" size="sm" onClick={() => {
+            setReminderSubject('')
+            setReminderOpen(true)
+          }} disabled={isFetching || !canEdit} className="w-full sm:w-auto text-amber-300 hover:text-amber-200">
+            <Bell size={14} /> Reminder
+          </Button>
         </div>
       </div>
 
@@ -368,6 +378,10 @@ export default function AccountDetailPage() {
               onMoveStage={move}
               onAddStage={openCreate}
               onAdvance={advance}
+              onReminder={(stage) => {
+                setReminderSubject(`Follow up on stage: ${stage.name}`)
+                setReminderOpen(true)
+              }}
               canEdit={canEdit}
               saving={boardSaveMutation.isPending}
             />
@@ -564,6 +578,13 @@ export default function AccountDetailPage() {
           </div>
         </div>
       </Modal>
+
+      <ReminderModal 
+        isOpen={reminderOpen} 
+        onClose={() => setReminderOpen(false)} 
+        accountKey={companyKey || ''} 
+        defaultSubject={reminderSubject}
+      />
     </motion.div>
   )
 }

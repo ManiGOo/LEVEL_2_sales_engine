@@ -1,9 +1,11 @@
 import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'motion/react'
-import { MessageSquare, LayoutDashboard, Building2, Target, Mail, FileText, X, LogOut, Users } from 'lucide-react'
+import { MessageSquare, LayoutDashboard, Building2, Target, Mail, FileText, X, LogOut, Users, Bell } from 'lucide-react'
 import Logo from './Logo'
 import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/lib/utils'
+import { useState } from 'react'
+import { ReminderListModal } from '@/components/reminders/ReminderListModal'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -24,6 +26,7 @@ const slideTransition = { type: 'tween', duration: 0.2, ease: 'easeOut' } as con
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { user, logout } = useAuth()
+  const [remindersOpen, setRemindersOpen] = useState(false)
   const initials =
     (user?.name || '')
       .split(' ')
@@ -54,15 +57,24 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         transition={slideTransition}
         className="fixed lg:sticky lg:top-0 z-50 w-72 h-screen glass flex flex-col border-r border-white/5"
       >
-        <div className="flex items-center justify-between p-5 border-b border-white/5">
+        <div className="flex items-center justify-between p-5 border-b border-white/5 relative">
           <Logo />
-          <button
-            onClick={onClose}
-            className="lg:hidden p-1.5 rounded-lg hover:bg-white/5 text-slate-400 transition-colors"
-            aria-label="Close menu"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setRemindersOpen(true)}
+              className="p-1.5 rounded-lg hover:bg-white/5 text-slate-400 hover:text-amber-300 transition-colors"
+              aria-label="View reminders"
+            >
+              <Bell size={18} />
+            </button>
+            <button
+              onClick={onClose}
+              className="lg:hidden p-1.5 rounded-lg hover:bg-white/5 text-slate-400 transition-colors"
+              aria-label="Close menu"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
@@ -122,6 +134,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </div>
         </div>
       </motion.aside>
+
+      <ReminderListModal isOpen={remindersOpen} onClose={() => setRemindersOpen(false)} />
     </>
   )
 }

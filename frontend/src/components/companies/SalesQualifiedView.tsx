@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
 import type { AccountListPage } from '@/types/api'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ChevronRight, Search, CircleDot, ListTree, ArrowUpDown, Pencil } from 'lucide-react'
+import { ChevronRight, Search, CircleDot, ListTree, ArrowUpDown, Calendar, Filter } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,25 +15,41 @@ import CreateAccountModal from './CreateAccountModal'
 
 const PAGE_SIZE = 30
 
-export default function SalesQualifiedView() {
+const selectCls =
+  'bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-colors px-3 py-2'
+
+export default function SalesQualifiedView({ onTotalChange }: { onTotalChange?: (total: number) => void }) {
   const { fetchApi } = useApi()
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
+  const [year, setYear] = useState('')
+  const [source, setSource] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
 
   async function load() {
     const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) })
     if (search) params.set('q', search)
+    if (year) params.set('year', year)
+    if (source) params.set('source', source)
     const res = await fetchApi(`/api/v1/accounts?${params.toString()}`)
     return (await res.json()) as AccountListPage
   }
 
   const { data, isFetching } = useQuery({
-    queryKey: ['accounts', page, search],
+    queryKey: ['accounts', page, search, year, source],
     queryFn: load,
   })
+
+  useEffect(() => {
+    if (data?.total !== undefined && onTotalChange) {
+      onTotalChange(data.total)
+    }
+  }, [data?.total, onTotalChange])
+
+  const years = data?.available_years ?? []
+  const sources = data?.available_sources ?? []
 
   const pages = Math.max(data?.pages || 1, 1)
   const start = (page - 1) * PAGE_SIZE + 1
@@ -58,9 +74,9 @@ export default function SalesQualifiedView() {
 
       <form
         onSubmit={submitSearch}
-        className="glass rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+        className="glass rounded-xl p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3"
       >
-        <div className="relative w-full sm:flex-1">
+        <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             value={q}
@@ -69,6 +85,45 @@ export default function SalesQualifiedView() {
             className="w-full pl-9 pr-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-colors"
           />
         </div>
+
+        <div className="flex items-center gap-1.5 text-slate-400 w-full sm:w-auto">
+          <Calendar size={15} className="shrink-0" />
+          <select
+            value={year}
+            onChange={(e) => { setYear(e.target.value); setPage(1) }}
+            className={cn(selectCls, 'flex-1 sm:flex-none')}
+          >
+            <option value="">All years</option>
+            {years.map((y: string) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-slate-400 w-full sm:w-auto">
+          <Filter size={15} className="shrink-0" />
+          <select
+            value={source}
+            onChange={(e) => { setSource(e.target.value); setPage(1) }}
+            className={cn(selectCls, 'flex-1 sm:flex-none')}
+          >
+            <option value="">All sources</option>
+            {sources.map((s: string) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
+        {(year || source || search) && (
+          <button
+            type="button"
+            onClick={() => { setYear(''); setSource(''); setSearch(''); setQ(''); setPage(1) }}
+            className="px-3 py-2 rounded-lg text-sm text-slate-300 bg-slate-700/60 hover:bg-slate-700 transition-colors w-full sm:w-auto"
+          >
+            Clear
+          </button>
+        )}
+
         <button
           type="submit"
           className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition-colors text-sm font-semibold text-white w-full sm:w-auto"
@@ -76,7 +131,7 @@ export default function SalesQualifiedView() {
           <Search size={14} />
           Search
         </button>
-        <Button variant="secondary" size="default" onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
+        <Button type="button" variant="secondary" size="default" onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
           <CircleDot size={14} />
           Create Account
         </Button>
@@ -162,15 +217,6 @@ export default function SalesQualifiedView() {
                   </div>
 
                   <ChevronRight size={16} className="text-slate-600 group-hover:text-indigo-400 transition-colors shrink-0 hidden sm:block" />
-                  </Link>
-                  <Link
-                    to={`/accounts/sales-qualified/${acc.company_key}`}
-                    title="Edit workflow"
-                    className="flex flex-col sm:flex-row items-stretch shrink-0"
-                  >
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto h-full sm:self-center">
-                      <Pencil size={14} /> Edit workflow
-                    </Button>
                   </Link>
                 </div>
               </motion.div>

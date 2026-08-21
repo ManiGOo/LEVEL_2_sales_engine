@@ -85,9 +85,18 @@ async def list_accounts(
     page: int = 1,
     page_size: int = 30,
     q: str | None = None,
+    source: str | None = None,
+    year: str | None = None,
 ) -> AccountListPage:
     query = select(GeneralCompany)
     count_query = select(func.count(GeneralCompany.id))
+    
+    # Get available years and sources
+    years_result = await db.execute(select(func.extract('year', GeneralCompany.created_at)).distinct())
+    available_years = sorted(list(set([str(int(y)) for y in years_result.scalars().all() if y])), reverse=True)
+    
+    sources_result = await db.execute(select(GeneralCompany.source).distinct())
+    available_sources = sorted([s for s in sources_result.scalars().all() if s])
     if q:
         pattern = f"%{q.strip()}%"
         filt = or_(
@@ -97,6 +106,14 @@ async def list_accounts(
         )
         query = query.where(filt)
         count_query = count_query.where(filt)
+        
+    if source:
+        query = query.where(GeneralCompany.source == source)
+        count_query = count_query.where(GeneralCompany.source == source)
+        
+    if year:
+        query = query.where(func.extract('year', GeneralCompany.created_at) == int(year))
+        count_query = count_query.where(func.extract('year', GeneralCompany.created_at) == int(year))
 
     total = (await db.execute(count_query)).scalar_one()
     pages = max((total + page_size - 1) // page_size, 1)
@@ -134,7 +151,15 @@ async def list_accounts(
                 )
             )
 
-    return AccountListPage(items=items, total=total, page=page, page_size=page_size, pages=pages)
+    return AccountListPage(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=pages,
+        available_years=available_years,
+        available_sources=available_sources
+    )
 
 
 async def get_account(db: AsyncSession, company_key: str) -> AccountDetail | None:

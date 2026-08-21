@@ -16,7 +16,7 @@ export interface QuotationTemplateDefaults {
   intro: string
   terms: string
   scope: string
-  modules: Array<{ title: string; icon: string; items: string[] }>
+  modules: Array<{ title: string; icon: string; category?: string; items: { title: string; description?: string }[] }>
   notes: string
   line_items: TemplateLineItem[]
 }
@@ -29,74 +29,80 @@ export interface QuotationTemplate {
 }
 
 const lims: QuotationTemplateDefaults = {
-  title: 'AIVOA LIMS Enterprise Suite — Commercial Proposal',
+  title: 'AIVOA LIMS Enterprise Suite Proposal',
   currency: 'INR',
   tax_pct: 18,
   intro:
-    '<p>Architected for <b>zero regulatory gaps &amp; high-throughput</b>, the AIVOA LIMS Enterprise Suite delivers a modern, high-performance foundation for pharmaceutical, medical device, and contract testing environments.</p>' +
-    '<p>Designed to eliminate manual transcriptions and regulatory risk, it seamlessly bridges laboratory testing execution, asset availability, dynamic client specifications, and electronic compliance (21 CFR Part 11, EU Annex 11).</p>',
+    '<p>Architected for <b>Zero Regulatory Gaps &amp; High Throughput</b>, the AIVOA LIMS Enterprise Suite delivers a modern, high-performance architectural foundation for pharmaceutical, medical device, and contract testing environments.</p>' +
+    '<p>Designed to eliminate manual transcriptions and regulatory risks, it seamlessly bridges laboratory testing execution, asset availability, dynamic client specifications, and electronic compliance.</p>',
   terms:
     '<p><b>Payment Terms &amp; Delivery Commitment</b></p>' +
     '<ul><li>50% advance along with Official Purchase Order (PO)</li>' +
     '<li>40% upon completion of User Acceptance Testing (UAT)</li>' +
     '<li>10% upon Final System Go-Live &amp; Sign-off</li></ul>' +
-    '<p>Environment setup within 5 business days from PO; target Go-Live in 30 days from kickoff. One-time fee exclusive of applicable GST (18%).</p>',
+    '<p>One-time fee exclusive of applicable GST (18%). Environment setup within 5 business days from PO; User Training &amp; Data Load in weeks 2–3; UAT &amp; Validation Review in week 4; target Go-Live in 30 days from kickoff.</p>',
   scope: '',
   modules: [
     {
       title: 'Sample & Master Data Management',
       icon: 'database',
+      category: 'CORE',
       items: [
-        'Multi-Sponsor/Dynamic Specs',
-        'Sample Inwarding & Chain of Custody',
-        'Stability & Retention Tracking',
-        'Barcode & Labeling',
+        { title: 'Multi-Sponsor / Dynamic Specs', description: 'Hybrid data model supporting common test parameters mapped to client-specific limits and STPs without database bloat.' },
+        { title: 'Sample Inwarding & Chain of Custody', description: 'Intake verification logging package seal condition, priority TAT flags, and storage requirements.' },
+        { title: 'Stability & Retention Tracking', description: 'Complete ICH Q1A stability pull tracking and automated retention sample location mapping.' },
+        { title: 'Barcode & Labeling', description: 'Automated AR Number and 2D barcode generation ready for thermal printing (Zebra ZD421 compatible).' },
       ],
     },
     {
       title: 'Laboratory Execution & Workflows',
       icon: 'flask',
+      category: 'CORE',
       items: [
-        'Hierarchical Task Allocation',
-        'Separate ATR & CoA Generation',
-        'Automated OOS/OOT Workflows',
-        'Maker/Checker Approval Engine',
+        { title: 'Hierarchical Task Allocation', description: 'Work planner allowing Lab Managers to assign tasks by category (Chemical, Micro, Packaging) or down to specific analysts per parameter.' },
+        { title: 'Separate ATR & CoA Generation', description: 'Independent Analytical Test Reports (ATRs) per department with final consolidated Certificate of Analysis release.' },
+        { title: 'Automated OOS/OOT Workflows', description: 'Immediate specification breach detection with direct handoff to eQMS investigation workflows.' },
+        { title: 'Maker/Checker Approval Engine', description: 'Strict dual-person verification enforcing regulatory sign-offs before batch release.' },
       ],
     },
     {
-      title: 'Reagents & NPM Inventory',
+      title: 'Reagents, Standards & NPM',
       icon: 'box',
+      category: 'INVENTORY',
       items: [
-        'Reference & Working Standards',
-        'Volumetric Solutions & Media',
-        'NPM Quality Control',
+        { title: 'Reference & Working Standards', description: 'Expiry tracking, potency adjustment, and usage logs during result entry.' },
+        { title: 'Volumetric Solutions & Media', description: 'Preparation logs, standardization records, and automated expiry locks.' },
+        { title: 'NPM Quality Control', description: 'Non-Product Material testing workflows enforcing GxP change control protocols.' },
       ],
     },
     {
       title: 'Equipment & Facility Mapping',
       icon: 'settings',
+      category: 'ASSETS',
       items: [
-        'Shared Asset Master',
-        'Hard Calibration System Lockouts',
-        'Facility & Environmental Mapping',
+        { title: 'Shared Asset Master Engine', description: 'Real-time cross-referencing with QMS Equipment register filtering lab instruments.' },
+        { title: 'Hard Calibration System Lockouts', description: 'Prevents analysts from executing tests or saving data using expired or uncalibrated instruments.' },
+        { title: 'Facility & Environmental Mapping', description: 'Mapped QC Block and utility areas for environmental monitoring trend tracking.' },
       ],
     },
     {
       title: 'Compliance & CSV Enablers',
       icon: 'shield',
+      category: 'ALCOA+',
       items: [
-        '21 CFR Part 11 & EU Annex 11',
-        'GAMP 5 Validation Package',
-        'Role-Based Security',
+        { title: 'US FDA 21 CFR Part 11 & EU Annex 11', description: 'Immutable, field-level time-stamped audit trails with reason-for-change prompts.' },
+        { title: 'CSV Validation Support Package', description: 'Pre-packaged GAMP 5 Category 4 validation templates (URS, FRS, Traceability Matrix, and IQ/OQ execution scripts) for Medtech CSV review.' },
+        { title: 'Role-Based Security', description: 'Strict granular permissions across Analysts, Lab Supervisors, QA Approvers, and System Admins.' },
       ],
     },
     {
       title: 'AI & Intelligent Automation',
       icon: 'cpu',
+      category: 'AI ENGINE',
       items: [
-        'Vision AI Vendor Label Scanner ✨ AI',
-        'AI CoA Drafting ✨ AI',
-        'Analytical Trend & Anomaly Detection ✨ AI',
+        { title: 'Vision AI Vendor Label Scanner ✨ AI', description: 'Scans vendor/sample barcodes and physical labels to auto-populate batch, product, mfg, and expiry details instantly.' },
+        { title: 'AI Certificate of Analysis (CoA) Drafting ✨ AI', description: 'Automatically pulls approved test parameters into audit-proof PDF CoAs formatted to client-specific layouts.' },
+        { title: 'Analytical Trend & Anomaly Detection ✨ AI', description: 'Monitors historical testing values to flag subtle instrument drift or OOT trends before failure occurs.' },
       ],
     },
   ],
@@ -124,12 +130,12 @@ const lims: QuotationTemplateDefaults = {
 }
 
 const globalQms: QuotationTemplateDefaults = {
-  title: 'AIVOA QMS Global Enterprise — Commercial Proposal',
+  title: 'AIVOA QMS Enterprise Suite — Global Compliance Edition',
   currency: 'USD',
   tax_pct: 0,
   intro:
-    '<p>Architected for <b>global regulatory harmonization &amp; zero-defect data integrity</b>, the AIVOA QMS Global Enterprise Suite is precision-engineered for US FDA &amp; EU regulatory adherence.</p>' +
-    '<p>By natively embedding ALCOA+ principles and proprietary AI, the platform eliminates compliance blind spots, guarantees immutable audit trails, and provides real-time oversight for MHRA, FDA, and EMA inspections.</p>',
+    '<p>Architected for <b>Global Regulatory Harmonization &amp; Zero-Defect Data Integrity</b>, the AIVOA QMS Global Enterprise Suite is precision-engineered to meet the strict demands of US FDA 21 CFR Part 11, EU Annex 11, and ICH Q10 Guidelines.</p>' +
+    '<p>To succeed in highly regulated export markets (US, EU, UK), organizations must demonstrate impenetrable data governance and proactive quality control. By natively embedding ALCOA+ principles and utilizing proprietary AI, the platform eliminates compliance blind spots, guarantees immutable audit trails, and provides real-time oversight for MHRA, FDA, and EMA inspections. This is not just a digitizer; it is a continuously audit-ready compliance engine.</p>',
   terms:
     '<p><b>Payment Terms &amp; Delivery Commitment</b></p>' +
     '<ul><li>50% advance upon execution of Official Purchase Order</li>' +
@@ -142,60 +148,60 @@ const globalQms: QuotationTemplateDefaults = {
       title: 'Global Compliance & CSV',
       icon: 'shield',
       items: [
-        'Native 21 CFR Part 11 & EU Annex 11 E-Signatures',
-        'Immutable Field-Level Audit Trails (ALCOA+)',
-        'GAMP 5 Category 4 CSV Validation Package',
-        'AI Compliance Copilot (SOP/Guideline Chat) ✨ AI',
+        { title: 'Native 21 CFR Part 11 & EU Annex 11 E-Signatures' },
+        { title: 'Immutable Field-Level Audit Trails (ALCOA+)' },
+        { title: 'GAMP 5 Category 4 CSV Validation Package' },
+        { title: 'AI Compliance Copilot (SOP/Guideline Chat) ✨ AI' },
       ],
     },
     {
       title: 'eQMS (Quality Events)',
       icon: 'alert',
       items: [
-        'Global CAPA, Deviations & RCA Workflows',
-        'OOS/OOT & Market Complaint Investigations',
-        'ICH Q9 Risk Assessment Framework',
-        'End-to-End Investigation Auto-Drafting ✨ AI',
+        { title: 'Global CAPA, Deviations & RCA Workflows' },
+        { title: 'OOS/OOT & Market Complaint Investigations' },
+        { title: 'ICH Q9 Risk Assessment Framework' },
+        { title: 'End-to-End Investigation Auto-Drafting ✨ AI' },
       ],
     },
     {
       title: 'Global DMS Architecture',
       icon: 'document',
       items: [
-        'Multi-Site Document Architecture & Routing',
-        'Automated Periodic Review & Expiry Tracking',
-        'Controlled Copy Tracking & Watermarking',
-        'Auto-Draft SOPs from Templates ✨ AI',
+        { title: 'Multi-Site Document Architecture & Routing' },
+        { title: 'Automated Periodic Review & Expiry Tracking' },
+        { title: 'Controlled Copy Tracking & Watermarking' },
+        { title: 'Auto-Draft SOPs from Templates ✨ AI' },
       ],
     },
     {
       title: 'Training & Competency',
       icon: 'users',
       items: [
-        'Automated Read & Understand (Linked to DMS)',
-        'Role-Based Training Matrix & Certification',
-        'Audit-Ready Individual Training Records',
-        'AI Quiz & Comprehension Generator ✨ AI',
+        { title: 'Automated Read & Understand (Linked to DMS)' },
+        { title: 'Role-Based Training Matrix & Certification' },
+        { title: 'Audit-Ready Individual Training Records' },
+        { title: 'AI Quiz & Comprehension Generator ✨ AI' },
       ],
     },
     {
       title: 'Supplier & Audit Mgmt',
       icon: 'truck',
       items: [
-        'Approved Supplier List (ASL) & Material Qual.',
-        'Regulatory Vendor Site Audit Scheduling',
-        'Supplier Corrective Action Requests (SCAR)',
-        'Internal Audit & Inspection Readiness Tracking',
+        { title: 'Approved Supplier List (ASL) & Material Qual.' },
+        { title: 'Regulatory Vendor Site Audit Scheduling' },
+        { title: 'Supplier Corrective Action Requests (SCAR)' },
+        { title: 'Internal Audit & Inspection Readiness Tracking' },
       ],
     },
     {
       title: 'eBMR & Product Data',
       icon: 'clipboard',
       items: [
-        'ISA-88 Standard Master Batch Records (MBR)',
-        'Automated Batch Disposition & Release Workflows',
-        'Automated COA (Certificate of Analysis) Gen.',
-        'AI-Generated APQR Analytics ✨ AI',
+        { title: 'ISA-88 Standard Master Batch Records (MBR)' },
+        { title: 'Automated Batch Disposition & Release Workflows' },
+        { title: 'Automated COA (Certificate of Analysis) Gen.' },
+        { title: 'AI-Generated APQR Analytics ✨ AI' },
       ],
     },
   ],
@@ -223,12 +229,12 @@ const globalQms: QuotationTemplateDefaults = {
 }
 
 const domesticQms: QuotationTemplateDefaults = {
-  title: 'AIVOA QMS Domestic Suite — Commercial Proposal',
+  title: 'AIVOA QMS Domestic Suite — Schedule M Edition',
   currency: 'INR',
   tax_pct: 18,
   intro:
-    '<p>Architected for <b>continuous audit readiness &amp; Schedule M compliance</b>, the AIVOA QMS Domestic Suite provides a robust digital foundation for life sciences manufacturing.</p>' +
-    '<p>It eliminates paper-based inefficiencies, ensures complete traceability, and seamlessly manages deviations, change controls, and document lifecycles — keeping your facility continuously audit-ready.</p>',
+    '<p>Architected for <b>Continuous Audit Readiness &amp; Schedule M Compliance</b>, the AIVOA QMS Domestic Suite provides a robust digital foundation for life sciences manufacturing.</p>' +
+    '<p>Architected specifically to meet the stringent demands of revised Schedule M guidelines, it is designed to eliminate paper-based inefficiencies, ensure complete traceability, and seamlessly manage deviations, change controls, and document lifecycles. By digitizing these core pillars, your facility will remain continuously audit-ready while standardizing quality operations across the plant.</p>',
   terms:
     '<p><b>Payment Terms &amp; Delivery Commitment</b></p>' +
     '<ul><li>50% advance along with Official Purchase Order (PO)</li>' +
@@ -241,60 +247,60 @@ const domesticQms: QuotationTemplateDefaults = {
       title: 'Document Management (DMS)',
       icon: 'document',
       items: [
-        'Core Document Control & Versioning',
-        'Review, Approval & Routing Matrix',
-        'Controlled / Uncontrolled Print (Watermarks)',
-        'Document Compliance Check ✨ AI',
+        { title: 'Core Document Control & Versioning' },
+        { title: 'Review, Approval & Routing Matrix' },
+        { title: 'Controlled / Uncontrolled Print (Watermarks)' },
+        { title: 'Document Compliance Check ✨ AI' },
       ],
     },
     {
       title: 'Quality Events (eQMS)',
       icon: 'alert',
       items: [
-        'Deviations, NC & Root Cause Analysis',
-        'CAPA & Change Control Workflows',
-        'Market Complaints & Product Recalls',
-        'Form & Template Builder ✨ AI',
+        { title: 'Deviations, NC & Root Cause Analysis' },
+        { title: 'CAPA & Change Control Workflows' },
+        { title: 'Market Complaints & Product Recalls' },
+        { title: 'Form & Template Builder ✨ AI' },
       ],
     },
     {
       title: 'eMBR & Product Data',
       icon: 'clipboard',
       items: [
-        'Full Item Master, Specs & Recipes (BOM)',
-        'ISA-88 Standard MBR Builder',
-        'Batch Issuance & QA Disposition Workflow',
-        'BMR Template Validation ✨ AI',
+        { title: 'Full Item Master, Specs & Recipes (BOM)' },
+        { title: 'ISA-88 Standard MBR Builder' },
+        { title: 'Batch Issuance & QA Disposition Workflow' },
+        { title: 'BMR Template Validation ✨ AI' },
       ],
     },
     {
       title: 'Supplier Management',
       icon: 'truck',
       items: [
-        'Vendor Master & Approved Supplier List (ASL)',
-        'Vendor Site Qualification & Audits',
-        'Supplier Corrective Action Requests (SCAR)',
-        'Vendor Performance Tracking',
+        { title: 'Vendor Master & Approved Supplier List (ASL)' },
+        { title: 'Vendor Site Qualification & Audits' },
+        { title: 'Supplier Corrective Action Requests (SCAR)' },
+        { title: 'Vendor Performance Tracking' },
       ],
     },
     {
       title: 'Equipment & Asset Mgmt',
       icon: 'settings',
       items: [
-        'Maintenance & Calibration Scheduler',
-        'Equipment Qualification (IQ/OQ/PQ)',
-        'Hard Calibration System Lockouts',
-        'Paper-to-Digital eLog Book Entry ✨ AI',
+        { title: 'Maintenance & Calibration Scheduler' },
+        { title: 'Equipment Qualification (IQ/OQ/PQ)' },
+        { title: 'Hard Calibration System Lockouts' },
+        { title: 'Paper-to-Digital eLog Book Entry ✨ AI' },
       ],
     },
     {
       title: 'Compliance & Validation',
       icon: 'shield',
       items: [
-        'Schedule M / 21 CFR Audit Trail & E-Signatures',
-        'CSV Validation Package (URS, FRS, IQ/OQ)',
-        'Secure Cloud Hosting (AWS/Azure India)',
-        'AI Compliance Copilot (Chat) ✨ AI',
+        { title: 'Schedule M / 21 CFR Audit Trail & E-Signatures' },
+        { title: 'CSV Validation Package (URS, FRS, IQ/OQ)' },
+        { title: 'Secure Cloud Hosting (AWS/Azure India)' },
+        { title: 'AI Compliance Copilot (Chat) ✨ AI' },
       ],
     },
   ],

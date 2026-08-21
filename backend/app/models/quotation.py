@@ -32,6 +32,13 @@ class Quotation(Base):
     modules: Mapped[list] = mapped_column(JSON, default=list)  # structured functional scope modules
     notes: Mapped[str | None] = mapped_column(Text)
 
+    buyer_signatory_name: Mapped[str | None] = mapped_column(String(255))
+    buyer_signatory_title: Mapped[str | None] = mapped_column(String(255))
+    buyer_signatory_date: Mapped[str | None] = mapped_column(String(64))
+    seller_signatory_name: Mapped[str | None] = mapped_column(String(255))
+    seller_signatory_title: Mapped[str | None] = mapped_column(String(255))
+    seller_signatory_date: Mapped[str | None] = mapped_column(String(64))
+
     line_items: Mapped[list] = mapped_column(JSON, default=list)
 
     subtotal: Mapped[float] = mapped_column(Numeric(14, 2), default=0)

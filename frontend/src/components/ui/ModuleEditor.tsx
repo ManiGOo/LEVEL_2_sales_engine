@@ -1,4 +1,4 @@
-import type { QuotationModule } from '@/types/api'
+import type { QuotationModule, QuotationModuleItem } from '@/types/api'
 import { Button } from './button'
 import { Plus, Trash2, GripVertical } from 'lucide-react'
 
@@ -12,7 +12,7 @@ const ICONS = ['document', 'alert', 'clipboard', 'truck', 'settings', 'shield', 
 
 export function ModuleEditor({ modules, onChange, disabled }: ModuleEditorProps) {
   function addModule() {
-    onChange([...modules, { title: 'New Module', icon: 'document', items: ['Feature 1'] }])
+    onChange([...modules, { title: 'New Module', icon: 'document', category: '', items: [{ title: 'Feature 1', description: '' }] }])
   }
 
   function removeModule(index: number) {
@@ -29,7 +29,7 @@ export function ModuleEditor({ modules, onChange, disabled }: ModuleEditorProps)
 
   function addItem(mIndex: number) {
     const m = modules[mIndex]
-    updateModule(mIndex, { items: [...m.items, 'New feature'] })
+    updateModule(mIndex, { items: [...m.items, { title: 'New feature', description: '' }] })
   }
 
   function removeItem(mIndex: number, iIndex: number) {
@@ -39,10 +39,10 @@ export function ModuleEditor({ modules, onChange, disabled }: ModuleEditorProps)
     updateModule(mIndex, { items })
   }
 
-  function updateItem(mIndex: number, iIndex: number, val: string) {
+  function updateItem(mIndex: number, iIndex: number, patch: Partial<QuotationModuleItem>) {
     const m = modules[mIndex]
     const items = [...m.items]
-    items[iIndex] = val
+    items[iIndex] = { ...items[iIndex], ...patch }
     updateModule(mIndex, { items })
   }
 
@@ -58,14 +58,24 @@ export function ModuleEditor({ modules, onChange, disabled }: ModuleEditorProps)
               <Trash2 className="w-4 h-4" />
             </button>
           )}
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Module Title</label>
               <input
                 disabled={disabled}
                 value={m.title}
                 onChange={(e) => updateModule(mIndex, { title: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Category Badge</label>
+              <input
+                disabled={disabled}
+                value={m.category || ''}
+                onChange={(e) => updateModule(mIndex, { category: e.target.value })}
+                placeholder="e.g. CORE, ASSETS"
                 className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
               />
             </div>
@@ -86,25 +96,35 @@ export function ModuleEditor({ modules, onChange, disabled }: ModuleEditorProps)
 
           <div>
             <label className="block text-xs text-slate-400 mb-2">Features</label>
-            <div className="space-y-2">
-              {m.items.map((item: string, iIndex: number) => (
-                <div key={iIndex} className="flex items-center gap-2">
-                  <span className="text-slate-500"><GripVertical className="w-4 h-4" /></span>
-                  <input
+            <div className="space-y-3">
+              {m.items.map((item: QuotationModuleItem, iIndex: number) => (
+                <div key={iIndex} className="rounded-lg border border-slate-700/60 p-3 bg-slate-800/40 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500"><GripVertical className="w-4 h-4" /></span>
+                    <input
+                      disabled={disabled}
+                      value={item.title}
+                      onChange={(e) => updateItem(mIndex, iIndex, { title: e.target.value })}
+                      placeholder="Feature title… add ✨ AI for badge"
+                      className="flex-1 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
+                    />
+                    {!disabled && (
+                      <button
+                        onClick={() => removeItem(mIndex, iIndex)}
+                        className="text-slate-500 hover:text-red-400"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <textarea
                     disabled={disabled}
-                    value={item}
-                    onChange={(e) => updateItem(mIndex, iIndex, e.target.value)}
-                    placeholder="Feature description... add ✨ AI for badge"
-                    className="flex-1 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
+                    value={item.description || ''}
+                    onChange={(e) => updateItem(mIndex, iIndex, { description: e.target.value })}
+                    placeholder="Optional feature description…"
+                    rows={2}
+                    className="w-full px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 resize-none"
                   />
-                  {!disabled && (
-                    <button
-                      onClick={() => removeItem(mIndex, iIndex)}
-                      className="text-slate-500 hover:text-red-400"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
                 </div>
               ))}
             </div>

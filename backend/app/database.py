@@ -126,6 +126,12 @@ async def ensure_quotation_schema() -> None:
         "scope": "TEXT",
         "modules": "JSON",
         "quotation_date": "DATE",
+        "buyer_signatory_name": "VARCHAR(255)",
+        "buyer_signatory_title": "VARCHAR(255)",
+        "buyer_signatory_date": "VARCHAR(64)",
+        "seller_signatory_name": "VARCHAR(255)",
+        "seller_signatory_title": "VARCHAR(255)",
+        "seller_signatory_date": "VARCHAR(64)",
     }
     async with engine.begin() as conn:
         def migrate(sync_conn):

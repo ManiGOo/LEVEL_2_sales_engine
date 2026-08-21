@@ -20,10 +20,16 @@ class QuotationLineItem(BaseModel):
         return v if v in ("one_time", "recurring") else "one_time"
 
 
+class QuotationModuleItem(BaseModel):
+    title: str = ""
+    description: str = ""
+
+
 class QuotationModule(BaseModel):
     title: str = ""
     icon: str = "document"
-    items: list[str] = []
+    category: str = ""
+    items: list[QuotationModuleItem] = []
 
 
 class QuotationCreate(BaseModel):
@@ -41,6 +47,12 @@ class QuotationCreate(BaseModel):
     notes: str | None = None
     tax_pct: float = 0
     line_items: list[QuotationLineItem] = []
+    buyer_signatory_name: str | None = None
+    buyer_signatory_title: str | None = None
+    buyer_signatory_date: str | None = None
+    seller_signatory_name: str | None = None
+    seller_signatory_title: str | None = None
+    seller_signatory_date: str | None = None
 
 
 class QuotationUpdate(BaseModel):
@@ -56,6 +68,12 @@ class QuotationUpdate(BaseModel):
     notes: str | None = None
     tax_pct: float | None = None
     line_items: list[QuotationLineItem] | None = None
+    buyer_signatory_name: str | None = None
+    buyer_signatory_title: str | None = None
+    buyer_signatory_date: str | None = None
+    seller_signatory_name: str | None = None
+    seller_signatory_title: str | None = None
+    seller_signatory_date: str | None = None
 
 
 class QuotationLineItemResponse(BaseModel):
@@ -88,6 +106,12 @@ class QuotationResponse(BaseModel):
     modules: list[QuotationModule] = []
     notes: str | None = None
     line_items: list[QuotationLineItemResponse] = []
+    buyer_signatory_name: str | None = None
+    buyer_signatory_title: str | None = None
+    buyer_signatory_date: str | None = None
+    seller_signatory_name: str | None = None
+    seller_signatory_title: str | None = None
+    seller_signatory_date: str | None = None
     subtotal: float = 0
     discount_total: float = 0
     tax_pct: float = 0
