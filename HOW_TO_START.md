@@ -33,7 +33,7 @@ Services / ports:
 | Service    | Host port | Notes |
 |------------|-----------|-------|
 | `frontend` | 3000      | React + Tailwind (`Dockerfile`) |
-| `backend`  | 8000      | FastAPI (`Dockerfile`); needs `backend/.env` (Pharma `DATABASE_URL` + `GROQ_API_KEY`) |
+| `backend`  | 8000      | FastAPI (`Dockerfile`); includes Playwright for PDF gen; needs `backend/.env` (Pharma `DATABASE_URL` + `GROQ_API_KEY`) |
 | `temporal` | — (internal `temporal:7233`) | `temporal server start-dev` — auto-started; no host port published, so it won't clash with a Temporal you already run on the host |
 | `lead_worker` | —      | Dedicated Temporal worker running `LeadResearchWorkflow` (lead research) **and** `WebEvidenceWorkflow` (web-evidence search) on `sales-lead-task-queue` (needs `TAVILY_API_KEY`) |
 | `chromadb` | 8100      | Chroma vector store |
@@ -106,3 +106,4 @@ Notes:
   lives in the shared remote Pharma DB, so it is **not** affected by stopping
   this stack.
 - Env files are gitignored (`.gitignore` covers `.env`, `.env.*`); never commit them.
+- If you run the `backend` locally *outside* of Docker (e.g. for development), you will need to manually run `playwright install-deps chromium` and `playwright install chromium` in your local environment so that the PDF generation engine works.
