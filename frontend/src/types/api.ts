@@ -470,6 +470,7 @@ export interface QuotationInput {
   title?: string
   currency?: string
   status?: string
+  quotation_date?: string | null
   valid_until?: string | null
   intro?: string | null
   terms?: string | null
