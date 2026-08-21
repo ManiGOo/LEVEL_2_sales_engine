@@ -162,6 +162,7 @@ async def create_quotation(db: AsyncSession, data: QuotationCreate, actor: User)
         status=data.status or "draft",
         currency=data.currency or "USD",
         title=data.title or "Commercial Proposal",
+        quotation_date=data.quotation_date,
         valid_until=data.valid_until,
         intro=data.intro,
         terms=data.terms,
@@ -210,7 +211,7 @@ async def update_quotation(
     if "modules" in update and update["modules"] is not None:
         qq.modules = [m for m in update["modules"]]
 
-    for field in ("title", "currency", "status", "valid_until", "intro", "terms", "scope", "notes"):
+    for field in ("title", "currency", "status", "quotation_date", "valid_until", "intro", "terms", "scope", "notes"):
         if field in update and update[field] is not None:
             setattr(qq, field, update[field])
     if "tax_pct" in update and update["tax_pct"] is not None:
