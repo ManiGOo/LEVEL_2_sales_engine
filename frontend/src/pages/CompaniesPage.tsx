@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
 import type { CompanyPage } from '@/types/api'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ScoreGauge } from '@/components/ui/ScoreGauge'
-import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet, Search, MapPin, Calendar, SlidersHorizontal } from 'lucide-react'
+import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet, Search, MapPin, Calendar, SlidersHorizontal, ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { showToast } from '@/components/ui/toast'
 import SegmentedTabs from '@/components/general/SegmentedTabs'
@@ -27,6 +27,7 @@ const selectCls =
 
 export default function CompaniesPage() {
   const { fetchApi } = useApi()
+  const qc = useQueryClient()
   const [tab, setTab] = useState('sales_qualified')
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
@@ -45,6 +46,28 @@ export default function CompaniesPage() {
     setMaxScore('')
     setPage(1)
   }
+
+  const promoteMut = useMutation({
+    mutationFn: async (company: any) => {
+      const res = await fetchApi('/api/v1/accounts/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          companies: [{ company_key: company.company_key, name: company.name, location: company.location }]
+        })
+      })
+      if (!res.ok) throw new Error('Failed to promote')
+      return res.json()
+    },
+    onSuccess: (data) => {
+      if (data.created.length > 0) {
+        showToast({ title: `Promoted to Sales Qualified`, variant: 'success' })
+        qc.invalidateQueries({ queryKey: ['accounts'] })
+        qc.invalidateQueries({ queryKey: ['general-companies'] })
+      } else {
+        showToast({ title: 'Already Sales Qualified', variant: 'info' })
+      }
+    }
+  })
 
   async function downloadExcel() {
     if (downloading) return
@@ -118,9 +141,9 @@ export default function CompaniesPage() {
     >
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">Companies</h1>
+          <h1 className="text-2xl font-bold text-white">Accounts</h1>
           <p className="text-slate-400 text-sm mt-1">
-            {data?.total != null ? `${data.total.toLocaleString()} companies` : 'All companies'} ranked by lead score
+            {data?.total != null ? `${data.total.toLocaleString()} accounts` : 'All accounts'}
           </p>
         </div>
         <button
@@ -298,10 +321,25 @@ export default function CompaniesPage() {
                 {company.mandate_count > 0 && (
                   <span className="hidden sm:flex items-center gap-1 text-[11px] text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full shrink-0">
                     <AlertTriangle size={11} />
-                    {company.mandate_count}
+                    {company.mandate_count} Mandates
                   </span>
                 )}
-                <ScoreGauge score={company.score} size={32} showMaxLabel={false} />
+                <div className="shrink-0 scale-90 sm:scale-100 hidden sm:block">
+                  <ScoreGauge score={company.avg_score} />
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    promoteMut.mutate(company)
+                  }}
+                  disabled={promoteMut.isPending}
+                  className="px-2 py-1.5 rounded bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-xs font-medium transition-colors shrink-0 flex items-center gap-1"
+                  title="Promote to Sales Qualified"
+                >
+                  <ArrowUpRight size={13} />
+                  Promote
+                </button>
                 <ChevronRight size={16} className="text-slate-600 group-hover:text-indigo-400 transition-colors shrink-0" />
               </Link>
             </motion.div>

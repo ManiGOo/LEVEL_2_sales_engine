@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
 import type { GeneralCompany, GeneralCompanyPage } from '@/types/api'
 import { motion } from 'motion/react'
-import { Plus, Building2, Globe, Search, Trash2, Users, Briefcase, ChevronRight } from 'lucide-react'
+import { Plus, Building2, Globe, Search, Trash2, Users, Briefcase, ChevronRight, ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import AddCompanyModal from './AddCompanyModal'
 import { showToast } from '@/components/ui/toast'
@@ -19,6 +19,28 @@ export default function GeneralCompaniesView() {
   const [search, setSearch] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+
+  const promoteMut = useMutation({
+    mutationFn: async (company: any) => {
+      const res = await fetchApi('/api/v1/accounts/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          companies: [{ company_key: company.company_key, name: company.name, location: company.location }]
+        })
+      })
+      if (!res.ok) throw new Error('Failed to promote')
+      return res.json()
+    },
+    onSuccess: (data) => {
+      if (data.created.length > 0) {
+        showToast({ title: `Promoted to Sales Qualified`, variant: 'success' })
+        queryClient.invalidateQueries({ queryKey: ['accounts'] })
+        queryClient.invalidateQueries({ queryKey: ['general-companies'] })
+      } else {
+        showToast({ title: 'Already Sales Qualified', variant: 'info' })
+      }
+    }
+  })
 
   const { data, isFetching } = useQuery({
     queryKey: ['general-companies', page, search],
@@ -173,7 +195,24 @@ export default function GeneralCompaniesView() {
                   )}
                 </span>
                 <button
-                  onClick={() => handleDelete(gc)}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    promoteMut.mutate(gc)
+                  }}
+                  disabled={promoteMut.isPending}
+                  className="px-2 py-1.5 rounded bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-xs font-medium transition-colors shrink-0 flex items-center gap-1"
+                  title="Promote to Sales Qualified"
+                >
+                  <ArrowUpRight size={13} />
+                  Promote
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleDelete(gc)
+                  }}
                   disabled={deleting === gc.company_key}
                   className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
                   title="Delete"
