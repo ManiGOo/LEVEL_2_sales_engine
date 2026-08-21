@@ -9,9 +9,8 @@ import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
 import DashboardPage from '@/pages/DashboardPage'
 import ChatPage from '@/pages/ChatPage'
-import CompaniesPage from '@/pages/CompaniesPage'
+import AccountsPage from '@/pages/AccountsPage'
 import CompanyDetailPage from '@/pages/CompanyDetailPage'
-import GeneralCompanyDetailPage from '@/pages/GeneralCompanyDetailPage'
 import LeadsPage from '@/pages/LeadsPage'
 import CampaignsPage from '@/pages/CampaignsPage'
 import CampaignDetailPage from '@/pages/CampaignDetailPage'
@@ -68,13 +67,13 @@ function AppRoutes() {
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/chat" element={<ChatPage />} />
-        <Route path="/companies" element={<CompaniesPage />} />
-        <Route path="/companies/:slug" element={<CompanyDetailPage />} />
-        <Route path="/companies/general/:companyKey" element={<GeneralCompanyDetailPage />} />
+        <Route path="/accounts" element={<Navigate to="/accounts/sales-qualified" replace />} />
+        <Route path="/accounts/:tab" element={<AccountsPage />} />
+        <Route path="/accounts/cdsco-s-fda/:slug" element={<CompanyDetailPage />} />
+        <Route path="/accounts/sales-qualified/:companyKey" element={<AccountDetailPage />} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/campaigns/:campaignId" element={<CampaignDetailPage />} />
-      <Route path="/accounts/:companyKey" element={<AccountDetailPage />} />
       <Route path="/quotations" element={<QuotationsPage />} />
       <Route path="/quotations/:id" element={<QuotationDetailPage />} />
         <Route path="/profile" element={<ProfilePage />} />

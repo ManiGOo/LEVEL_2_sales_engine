@@ -2,14 +2,13 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
 import type { CompanyPage } from '@/types/api'
-import { Link } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ScoreGauge } from '@/components/ui/ScoreGauge'
+import SegmentedTabs from '@/components/general/SegmentedTabs'
 import { Building2, ChevronRight, AlertTriangle, Download, Loader2, FileSpreadsheet, Search, MapPin, Calendar, SlidersHorizontal, ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { showToast } from '@/components/ui/toast'
-import SegmentedTabs from '@/components/general/SegmentedTabs'
-import GeneralCompaniesView from '@/components/general/GeneralCompaniesView'
 import SalesQualifiedView from '@/components/companies/SalesQualifiedView'
 import Pagination from '@/components/ui/Pagination'
 
@@ -25,10 +24,12 @@ function rankBadge(rank: number) {
 const selectCls =
   'bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-colors px-3 py-2'
 
-export default function CompaniesPage() {
+export default function AccountsPage() {
   const { fetchApi } = useApi()
   const qc = useQueryClient()
-  const [tab, setTab] = useState('sales_qualified')
+  const navigate = useNavigate()
+  const { tab = 'sales-qualified' } = useParams()
+  
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
@@ -163,19 +164,16 @@ export default function CompaniesPage() {
 
       <SegmentedTabs
         tabs={[
-          { key: 'sales_qualified', label: 'Sales Qualified' },
-          { key: 'automated', label: 'CDSCO / S-FDA' },
-          { key: 'general', label: 'General' },
+          { key: 'sales-qualified', label: 'Sales Qualified' },
+          { key: 'cdsco-s-fda', label: 'CDSCO / S-FDA' },
         ]}
         active={tab}
-        onChange={setTab}
+        onChange={(newTab: string) => navigate(`/accounts/${newTab}`)}
       />
 
-      {tab === 'general' ? (
-        <GeneralCompaniesView />
-      ) : tab === 'sales_qualified' ? (
+      {tab === 'sales-qualified' ? (
         <SalesQualifiedView />
-      ) : (
+      ) : tab === 'cdsco-s-fda' ? (
       <>
 
       <form
@@ -291,7 +289,7 @@ export default function CompaniesPage() {
               transition={{ delay: Math.min(i * 0.02, 0.3) }}
             >
               <Link
-                to={`/companies/${company.slug}`}
+                to={`/accounts/cdsco-s-fda/${company.slug}`}
                 className="glass glass-hover rounded-xl p-3 flex items-center gap-3 group transition-all"
               >
                 <span
@@ -366,7 +364,7 @@ export default function CompaniesPage() {
         />
       )}
       </>
-      )}
+      ) : null}
     </motion.div>
   )
 }

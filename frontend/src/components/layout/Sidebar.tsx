@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/chat', icon: MessageSquare, label: 'AI Chat' },
-  { to: '/companies', icon: Building2, label: 'Accounts' },
+  { to: '/accounts', icon: Building2, label: 'Accounts' },
   { to: '/quotations', icon: FileText, label: 'Quotations' },
   { to: '/leads', icon: Target, label: 'Leads' },
   { to: '/contacts', icon: Users, label: 'Contacts' },

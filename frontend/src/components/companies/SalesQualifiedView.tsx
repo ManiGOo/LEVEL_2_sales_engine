@@ -1,17 +1,17 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '@/hooks/useApi'
-import type { AccountListPage, CompanyPage } from '@/types/api'
+import type { AccountListPage } from '@/types/api'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ChevronRight, Search, CircleDot, ListTree, ArrowUpDown, Download, Check, Pencil } from 'lucide-react'
+import { ChevronRight, Search, CircleDot, ListTree, ArrowUpDown, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Modal } from '@/components/ui/Modal'
-import { showToast } from '@/components/ui/toast'
+
 import { stageStatusMeta } from '@/lib/account'
 import Pagination from '@/components/ui/Pagination'
+import CreateAccountModal from './CreateAccountModal'
 
 const PAGE_SIZE = 30
 
@@ -21,7 +21,7 @@ export default function SalesQualifiedView() {
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
-  const [importOpen, setImportOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
 
   async function load() {
     const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) })
@@ -76,17 +76,17 @@ export default function SalesQualifiedView() {
           <Search size={14} />
           Search
         </button>
-        <Button variant="secondary" size="default" onClick={() => setImportOpen(true)} className="w-full sm:w-auto">
-          <Download size={14} />
-          Import companies
+        <Button variant="secondary" size="default" onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
+          <CircleDot size={14} />
+          Create Account
         </Button>
       </form>
 
-      <ImportCompaniesModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        onImported={() => {
-          setImportOpen(false)
+      <CreateAccountModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => {
+          setCreateOpen(false)
           qc.invalidateQueries({ queryKey: ['accounts'] })
         }}
       />
@@ -201,156 +201,4 @@ export default function SalesQualifiedView() {
   )
 }
 
-function ImportCompaniesModal({
-  open,
-  onClose,
-  onImported,
-}: {
-  open: boolean
-  onClose: () => void
-  onImported: () => void
-}) {
-  const { fetchApi } = useApi()
-  const [q, setQ] = useState('')
-  const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  const { data, isFetching } = useQuery({
-    queryKey: ['import-companies', search],
-    enabled: open,
-    queryFn: async (): Promise<{ items: CompanyPage['items']; existing: Set<string> }> => {
-      const params = new URLSearchParams({ page: '1', page_size: '50' })
-      if (search) params.set('q', search)
-      const res = await fetchApi(`/api/v1/companies/ranking?${params.toString()}`)
-      const page = (await res.json()) as CompanyPage
-      if (!page.items.length) return { items: [], existing: new Set() }
-      const ex = await fetchApi('/api/v1/accounts/exists', {
-        method: 'POST',
-        body: JSON.stringify({ names: page.items.map((c) => c.name) }),
-      })
-      const exJson = (await ex.json()) as { existing: string[] }
-      const existing = new Set(exJson.existing.map((n) => n.toLowerCase()))
-      return { items: page.items, existing }
-    },
-  })
-
-  const visible = (data?.items ?? []).filter((c) => !data?.existing.has(c.name.toLowerCase()))
-
-  const importMutation = useMutation({
-    mutationFn: async () => {
-      const companies = (data?.items ?? [])
-        .filter((c) => selected.has(c.company_key))
-        .map((c) => ({ company_key: c.company_key, name: c.name, location: c.state || c.location }))
-      if (!companies.length) return
-      const res = await fetchApi('/api/v1/accounts/import', {
-        method: 'POST',
-        body: JSON.stringify({ companies }),
-      })
-      if (!res.ok) throw new Error((await res.json()).detail || 'Import failed')
-      return (await res.json()) as { imported_count: number; skipped: string[] }
-    },
-    onSuccess: (result) => {
-      if (result) {
-        const skippedNote = result.skipped.length ? ` (${result.skipped.length} already present)` : ''
-        showToast({
-          variant: 'success',
-          title: `Imported ${result.imported_count} compan${result.imported_count === 1 ? 'y' : 'ies'}`,
-          description: `Added to Accounts${skippedNote}`,
-        })
-      }
-      setSelected(new Set())
-      onImported()
-    },
-    onError: (e: unknown) => showToast({ variant: 'error', title: 'Import failed', description: (e as Error).message }),
-  })
-
-  function toggle(key: string) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
-  function submitSearch(e: React.FormEvent) {
-    e.preventDefault()
-    setSearch(q.trim())
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title="Import companies into Accounts" className="max-w-2xl">
-      <div className="p-5 space-y-4">
-        <p className="text-sm text-slate-400">
-          Pick CDSCO / S-FDA companies to add as Accounts. Imported companies can then be given a
-          sales-process workflow. Companies already in Accounts are hidden from this list.
-        </p>
-
-        <form onSubmit={submitSearch} className="flex gap-2">
-          <div className="relative flex-1">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search CDSCO / S-FDA companies…"
-              className="w-full pl-9 pr-3 py-2 bg-slate-800/70 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
-            />
-          </div>
-          <Button type="submit" variant="secondary" size="default">
-            Search
-          </Button>
-        </form>
-
-        <div className="max-h-[50vh] overflow-y-auto scrollbar-thin space-y-2">
-          {isFetching ? (
-            <div className="space-y-2">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-12 glass rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : visible.length > 0 ? (
-            visible.map((c) => {
-              const checked = selected.has(c.company_key)
-              return (
-                <label
-                  key={c.company_key}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
-                    checked ? 'border-indigo-500/40 bg-indigo-500/10' : 'border-white/5 bg-slate-900/40 hover:bg-white/5'
-                  )}
-                >
-                  <input type="checkbox" checked={checked} onChange={() => toggle(c.company_key)} className="accent-indigo-500 h-4 w-4 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-white truncate">{c.name}</p>
-                    <p className="text-[11px] text-slate-500 truncate">
-                      {[c.state || c.location, c.event_count ? `${c.event_count} signals` : null, `score ${c.score}`]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                  </div>
-                  {checked && <Check size={16} className="text-indigo-400 shrink-0" />}
-                </label>
-              )
-            })
-          ) : (
-            <p className="text-sm text-slate-500 text-center py-8">
-              {search ? 'No new companies found.' : 'All matching companies are already in Accounts.'}
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between pt-1">
-          <span className="text-xs text-slate-500">{selected.size} selected</span>
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={() => importMutation.mutate()} disabled={selected.size === 0 || importMutation.isPending}>
-              <Download size={14} /> {importMutation.isPending ? 'Importing…' : 'Import selected'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </Modal>
-  )
-}
