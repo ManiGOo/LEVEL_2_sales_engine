@@ -34,6 +34,7 @@ class IntentSignalInput(BaseModel):
 
 class GeneralCompanyCreate(BaseModel):
     name: str
+    company_key: str | None = None
     website: str | None = None
     linkedin_url: str | None = None
     company_status: str = "unknown"

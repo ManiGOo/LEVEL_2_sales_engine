@@ -17,7 +17,7 @@ async def create_general_company(
     data: GeneralCompanyCreate,
     user: User,
 ) -> GeneralCompany:
-    base_key = _slugify(data.name)
+    base_key = data.company_key or _slugify(data.name)
     key = base_key
     existing = await get_general_company_by_key(db, key)
     while existing:
