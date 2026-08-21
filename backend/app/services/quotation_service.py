@@ -75,6 +75,7 @@ def _to_response(q: Quotation, line_items: list[QuotationLineItemResponse]) -> Q
         status=q.status,
         currency=q.currency,
         title=q.title,
+        quotation_date=q.quotation_date,
         valid_until=q.valid_until,
         intro=q.intro,
         terms=q.terms,
