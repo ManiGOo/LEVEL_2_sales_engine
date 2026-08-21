@@ -5,7 +5,9 @@ import { Users, Search, Loader2, Building2, ExternalLink, User } from 'lucide-re
 import { useApi } from '@/hooks/useApi'
 import { motion } from 'motion/react'
 import Pagination from '@/components/ui/Pagination'
-import type { ContactsPageResponse } from '@/types/api'
+import Modal from '@/components/ui/Modal'
+import { toast } from '@/components/ui/toast'
+import type { ContactsPageResponse, ContactResponse } from '@/types/api'
 import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 30
@@ -14,6 +16,9 @@ export default function ContactsPage() {
   const { fetchApi } = useApi()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [editingContact, setEditingContact] = useState<ContactResponse | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editTitle, setEditTitle] = useState('')
 
   const { data, isLoading } = useQuery<ContactsPageResponse>({
     queryKey: ['contacts', page, search],
@@ -31,6 +36,38 @@ export default function ContactsPage() {
 
   function go(dir: number) {
     setPage((p) => Math.max(1, Math.min(p + dir, pages)))
+  }
+
+  async function handleSaveContact(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingContact) return
+
+    const toastId = toast.loading('Updating contact...')
+    try {
+      const res = await fetchApi(`/api/v1/contacts/${editingContact.company_key}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          old_name: editingContact.name,
+          new_name: editName,
+          new_title: editTitle
+        })
+      })
+
+      if (!res.ok) throw new Error('Failed to update contact')
+      toast.success('Contact updated successfully', { id: toastId })
+      setEditingContact(null)
+      // Force reload or wait for query invalidation. We can just mutate directly or let react-query refetch
+      window.location.reload()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update contact', { id: toastId })
+    }
+  }
+
+  function openEdit(contact: ContactResponse) {
+    setEditingContact(contact)
+    setEditName(contact.name)
+    setEditTitle(contact.title)
   }
 
   return (
@@ -120,13 +157,21 @@ export default function ContactsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Link 
-                        to={`/companies/${contact.company_key}`}
-                        className="inline-flex items-center gap-1.5 text-[13px] font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
-                      >
-                        View Company
-                        <ExternalLink size={14} />
-                      </Link>
+                      <div className="flex items-center justify-end gap-4">
+                        <button
+                          onClick={() => openEdit(contact)}
+                          className="text-[13px] font-medium text-slate-400 hover:text-slate-200 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <Link 
+                          to={`/companies/${contact.company_key}`}
+                          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                        >
+                          View Company
+                          <ExternalLink size={14} />
+                        </Link>
+                      </div>
                     </td>
                   </motion.tr>
                 ))
@@ -149,6 +194,47 @@ export default function ContactsPage() {
           </div>
         )}
       </div>
+
+      <Modal open={!!editingContact} title="Edit Contact" onClose={() => setEditingContact(null)}>
+        {editingContact && (
+          <form onSubmit={handleSaveContact} className="space-y-4 p-4 lg:p-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Name</label>
+              <input 
+                type="text" 
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full bg-slate-900 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Title</label>
+              <input 
+                type="text" 
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full bg-slate-900 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <button 
+                type="button" 
+                onClick={() => setEditingContact(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit"
+                className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   )
 }

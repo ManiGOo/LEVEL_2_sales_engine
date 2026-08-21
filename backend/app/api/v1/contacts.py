@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select, func, desc, or_, true
 from app.dependencies import get_current_user
@@ -21,6 +21,11 @@ class ContactsPageResponse(BaseModel):
     page_size: int
     total_count: int
 
+class ContactUpdateRequest(BaseModel):
+    old_name: str
+    new_name: str
+    new_title: str
+
 @router.get("", response_model=ContactsPageResponse)
 async def get_contacts(
     page: int = Query(1, ge=1),
@@ -33,7 +38,7 @@ async def get_contacts(
         dm = func.jsonb_array_elements(CompanyLead.decision_makers).alias("dm")
         
         name_col = func.jsonb_extract_path_text(dm.column, "name")
-        title_col = func.jsonb_extract_path_text(dm.column, "title")
+        title_col = func.jsonb_extract_path_text(dm.column, "role")
         source_col = func.jsonb_extract_path_text(dm.column, "source")
         
         stmt = select(
@@ -80,5 +85,36 @@ async def get_contacts(
             page_size=page_size,
             total_count=total_count
         )
+    finally:
+        db.close()
+
+@router.put("/{company_key}")
+async def update_contact(
+    company_key: str,
+    payload: ContactUpdateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    db = SessionLocal()
+    try:
+        lead = db.query(CompanyLead).filter(CompanyLead.company_key == company_key).first()
+        if not lead:
+            raise HTTPException(status_code=404, detail="Company not found")
+            
+        makers = lead.decision_makers or []
+        updated = False
+        for m in makers:
+            if m.get("name") == payload.old_name:
+                m["name"] = payload.new_name
+                m["role"] = payload.new_title
+                updated = True
+                break
+                
+        if not updated:
+            raise HTTPException(status_code=404, detail="Contact not found")
+            
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(lead, "decision_makers")
+        db.commit()
+        return {"status": "ok"}
     finally:
         db.close()
