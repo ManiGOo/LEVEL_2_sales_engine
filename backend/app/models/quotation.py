@@ -23,6 +23,7 @@ class Quotation(Base):
     currency: Mapped[str] = mapped_column(String(8), default="USD")
 
     title: Mapped[str] = mapped_column(String(255), default="Commercial Proposal")
+    quotation_date: Mapped[date | None] = mapped_column(Date)
     valid_until: Mapped[date | None] = mapped_column(Date)
 
     intro: Mapped[str | None] = mapped_column(Text)  # executive overview

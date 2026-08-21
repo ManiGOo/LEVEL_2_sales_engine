@@ -32,6 +32,7 @@ class QuotationCreate(BaseModel):
     title: str = "Commercial Proposal"
     currency: str = "USD"
     status: str = "draft"
+    quotation_date: date | None = None
     valid_until: date | None = None
     intro: str | None = None
     terms: str | None = None
@@ -46,6 +47,7 @@ class QuotationUpdate(BaseModel):
     title: str | None = None
     currency: str | None = None
     status: str | None = None
+    quotation_date: date | None = None
     valid_until: date | None = None
     intro: str | None = None
     terms: str | None = None
@@ -78,6 +80,7 @@ class QuotationResponse(BaseModel):
     status: str
     currency: str
     title: str
+    quotation_date: date | None = None
     valid_until: date | None = None
     intro: str | None = None
     terms: str | None = None

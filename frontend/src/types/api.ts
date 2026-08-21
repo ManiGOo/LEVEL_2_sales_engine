@@ -421,6 +421,7 @@ export interface Quotation {
   status: QuotationStatus
   currency: string
   title: string
+  quotation_date?: string | null
   valid_until: string | null
   intro: string | null
   terms: string | null

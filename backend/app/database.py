@@ -125,6 +125,7 @@ async def ensure_quotation_schema() -> None:
         "html": "TEXT",
         "scope": "TEXT",
         "modules": "JSON",
+        "quotation_date": "DATE",
     }
     async with engine.begin() as conn:
         def migrate(sync_conn):

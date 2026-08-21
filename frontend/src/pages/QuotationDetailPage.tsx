@@ -62,6 +62,7 @@ export default function QuotationDetailPage() {
     title: string
     currency: string
     status: Quotation['status']
+    quotation_date: string
     valid_until: string
     intro: string
     terms: string
@@ -126,6 +127,7 @@ export default function QuotationDetailPage() {
       title: data.title,
       currency: data.currency,
       status: data.status,
+      quotation_date: data.quotation_date || '',
       valid_until: data.valid_until || '',
       intro: data.intro || '',
       terms: data.terms || '',
@@ -157,6 +159,7 @@ export default function QuotationDetailPage() {
         title: form!.title,
         currency: form!.currency,
         status: form!.status,
+        quotation_date: form!.quotation_date || null,
         valid_until: form!.valid_until || null,
         intro: form!.intro,
         terms: form!.terms,
@@ -221,6 +224,7 @@ export default function QuotationDetailPage() {
         title: form!.title,
         currency: form!.currency,
         status: form!.status,
+        quotation_date: form!.quotation_date || null,
         valid_until: form!.valid_until || null,
         intro: form!.intro,
         terms: form!.terms,
@@ -270,7 +274,8 @@ export default function QuotationDetailPage() {
         body: JSON.stringify({
           title: form!.title,
           currency: form!.currency,
-          status: form!.status,
+          status: 'draft',
+          quotation_date: form!.quotation_date || null,
           valid_until: form!.valid_until || null,
           intro: form!.intro,
           terms: form!.terms,
@@ -460,6 +465,15 @@ export default function QuotationDetailPage() {
                   <option value="rejected" className={optionCls}>Rejected</option>
                   <option value="expired" className={optionCls}>Expired</option>
                 </select>
+              </Field>
+              <Field label="Date">
+                <input
+                  type="date"
+                  disabled={!editable}
+                  value={form.quotation_date}
+                  onChange={(e) => setForm({ ...form, quotation_date: e.target.value })}
+                  className={inputCls}
+                />
               </Field>
               <Field label="Valid until">
                 <input

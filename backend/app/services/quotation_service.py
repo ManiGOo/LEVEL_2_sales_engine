@@ -332,7 +332,7 @@ def render_html(q: QuotationResponse) -> str:
         return net_total, tax_total
 
     valid = q.valid_until.isoformat() if q.valid_until else "—"
-    issued = q.created_at.strftime("%B %d, %Y") if q.created_at else "—"
+    issued = q.quotation_date.strftime("%B %d, %Y") if q.quotation_date else q.created_at.strftime("%B %d, %Y") if q.created_at else "—"
     status_label = q.status.title()
     intro_html = q.intro or (
         f"This proposal summarizes the proposed solution, commercial scope, and "
@@ -585,7 +585,7 @@ async def render_preview(
     totals = compute_totals(items)
     if "modules" in update and update["modules"] is not None:
         q.modules = [m for m in update["modules"]]
-    for field in ("title", "currency", "status", "valid_until", "intro", "terms", "scope", "notes"):
+    for field in ("title", "currency", "status", "quotation_date", "valid_until", "intro", "terms", "scope", "notes"):
         if field in update and update[field] is not None:
             setattr(q, field, update[field])
     q.subtotal = totals["subtotal"]
@@ -610,6 +610,7 @@ async def _record_version(db: AsyncSession, qq: Quotation, actor: User | None) -
         "title": qq.title,
         "currency": qq.currency,
         "status": qq.status,
+        "quotation_date": qq.quotation_date.isoformat() if qq.quotation_date else None,
         "valid_until": qq.valid_until.isoformat() if qq.valid_until else None,
         "intro": qq.intro,
         "terms": qq.terms,
@@ -702,7 +703,9 @@ async def restore_version(
     qq.title = snap.get("title", qq.title)
     qq.currency = snap.get("currency", qq.currency)
     qq.status = snap.get("status", qq.status)
+    q_date = snap.get("quotation_date")
     qq.valid_until = date.fromisoformat(valid) if valid else None
+    qq.quotation_date = date.fromisoformat(q_date) if q_date else None
     qq.intro = snap.get("intro")
     qq.terms = snap.get("terms")
     qq.scope = snap.get("scope")
