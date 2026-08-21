@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select, func, desc, or_
+from sqlalchemy import select, func, desc, or_, true
 from app.dependencies import get_current_user
 from app.scraper.db import SessionLocal
 from app.scraper.models import CompanyLead
@@ -42,7 +42,7 @@ async def get_contacts(
             source_col.label("source"),
             CompanyLead.company_name,
             CompanyLead.company_key
-        ).select_from(CompanyLead).join(dm, True)
+        ).select_from(CompanyLead).join(dm, true())
         
         if q:
             search_term = f"%{q}%"
