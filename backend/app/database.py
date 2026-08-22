@@ -140,3 +140,31 @@ async def ensure_quotation_schema() -> None:
                 if name not in existing:
                     sync_conn.execute(text(f"ALTER TABLE sales_app.quotations ADD COLUMN {name} {definition}"))
         await conn.run_sync(migrate)
+
+
+async def ensure_reminder_schema() -> None:
+    """Additive, idempotent migrations for the reminders table.
+
+    Adds per-user ownership (user_id/user_email), a visibility flag ("me" vs
+    "all"), and makes account_key optional so reminders can be private to a user
+    or shared support-wide while still being attachable to an account."""
+    columns = {
+        "user_id": "VARCHAR(36) NOT NULL DEFAULT ''",
+        "user_email": "VARCHAR(255) NOT NULL DEFAULT ''",
+        "visibility": "VARCHAR(16) NOT NULL DEFAULT 'me'",
+    }
+    async with engine.begin() as conn:
+        def migrate(sync_conn):
+            existing = {c["name"] for c in inspect(sync_conn).get_columns("reminders", schema="sales_app")}
+            for name, definition in columns.items():
+                if name not in existing:
+                    try:
+                        sync_conn.execute(text(f"ALTER TABLE sales_app.reminders ADD COLUMN {name} {definition}"))
+                    except Exception:
+                        pass
+            # account_key was originally NOT NULL; allow reminders without an account.
+            try:
+                sync_conn.execute(text("ALTER TABLE sales_app.reminders ALTER COLUMN account_key DROP NOT NULL"))
+            except Exception:
+                pass
+        await conn.run_sync(migrate)

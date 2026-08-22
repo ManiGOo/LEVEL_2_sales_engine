@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button'
 
 export interface Reminder {
   id: string
-  account_key: string
+  account_key: string | null
   subject: string
   due_at: string
   is_completed: boolean
+  user_email: string
+  visibility: 'me' | 'all'
 }
 
 export function ReminderListModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
@@ -50,11 +52,19 @@ export function ReminderListModal({ isOpen, onClose }: { isOpen: boolean, onClos
                   <h4 className={`text-sm font-medium ${r.is_completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
                     {r.subject}
                   </h4>
-                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
                     {r.is_completed ? <CheckCircle2 size={12} className="text-emerald-500"/> : <Clock size={12} />}
                     {new Date(r.due_at).toLocaleString()}
+                    {r.account_key && (
+                      <>
+                        <span className="text-slate-600 mx-1">•</span>
+                        <span className="uppercase">{r.account_key}</span>
+                      </>
+                    )}
                     <span className="text-slate-600 mx-1">•</span>
-                    <span className="uppercase">{r.account_key}</span>
+                    <span className={r.visibility === 'all' ? 'text-amber-400' : 'text-slate-500'}>
+                      {r.visibility === 'all' ? 'All support' : r.user_email}
+                    </span>
                   </p>
                 </div>
                 {!r.is_completed && (

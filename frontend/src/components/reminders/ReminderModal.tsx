@@ -21,12 +21,14 @@ export function ReminderModal({
   const [subject, setSubject] = useState(defaultSubject)
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
+  const [visibility, setVisibility] = useState<'me' | 'all'>('me')
   const [loading, setLoading] = useState(false)
   const queryClient = useQueryClient()
 
   React.useEffect(() => {
     if (isOpen) {
       setSubject(defaultSubject)
+      setVisibility('me')
     }
   }, [isOpen, defaultSubject])
 
@@ -46,9 +48,10 @@ export function ReminderModal({
       const res = await fetchApi('/api/v1/reminders', {
         method: 'POST',
         body: JSON.stringify({
-          account_key: accountKey,
+          account_key: accountKey || null,
           subject,
           due_at: dueAtDate.toISOString(),
+          visibility,
           is_completed: false
         })
       })
@@ -104,6 +107,38 @@ export function ReminderModal({
               required
             />
           </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-400 uppercase mb-1">Visible to</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setVisibility('me')}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm border transition-colors ${
+                visibility === 'me'
+                  ? 'border-indigo-500 bg-indigo-500/10 text-white'
+                  : 'border-slate-700 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              Only me
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisibility('all')}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm border transition-colors ${
+                visibility === 'all'
+                  ? 'border-indigo-500 bg-indigo-500/10 text-white'
+                  : 'border-slate-700 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              All support
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">
+            {visibility === 'all'
+              ? 'Shared with every user (support-wide).'
+              : 'Private — only you can see this reminder.'}
+          </p>
         </div>
         <div className="pt-4 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
